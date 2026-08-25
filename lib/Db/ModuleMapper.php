@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\ProjectManager\Db;
+
+use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\IDBConnection;
+
+/** @template-extends QBMapper<Module> */
+class ModuleMapper extends QBMapper {
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'pm_modules', Module::class);
+	}
+
+	/** @return Module[] */
+	public function findAllForProject(int $projectId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('project_id', $qb->createNamedParameter($projectId, IQueryBuilder::PARAM_INT)))
+			->orderBy('sort_order', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * @throws \OCP\AppFramework\Db\DoesNotExistException
+	 * @throws \OCP\AppFramework\Db\MultipleObjectsReturnedException
+	 */
+	public function find(int $id): Module {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+		return $this->findEntity($qb);
+	}
+
+	public function deleteAllForProject(int $projectId): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('project_id', $qb->createNamedParameter($projectId, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
+	}
+}

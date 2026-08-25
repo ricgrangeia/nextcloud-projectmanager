@@ -1,0 +1,39 @@
+{
+	"name": "ricardo/projectmanager",
+	"description": "Multi-project hour and progress tracker for Nextcloud",
+	"license": "AGPL-3.0-or-later",
+	"type": "project",
+	"authors": [
+		{
+			"name": "Ricardo",
+			"email": "ricardo@grangeia.pt"
+		},
+		{
+			"name": "Ricardo",
+			"email": "ricardograngeia@gmail.com"
+		}
+	],
+	"autoload": {
+		"psr-4": {
+			"OCA\\ProjectManager\\": "lib/"
+		}
+	},
+	"require": {
+		"php": "^8.2",
+		"phpoffice/phpspreadsheet": "^5.9"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^10.5",
+		"nextcloud/ocp": "dev-stable34"
+	},
+	"scripts": {
+		"test:unit": "phpunit tests -c tests/phpunit.xml --colors=always"
+	},
+	"config": {
+		"optimize-autoloader": true,
+		"sort-packages": true,
+		"platform": {
+			"php": "8.2"
+		}
+	}
+}

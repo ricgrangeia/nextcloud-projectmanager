@@ -1,0 +1,521 @@
+{
+	"openapi": "3.0.3",
+	"info": {
+		"title": "Project Manager",
+		"version": "1.0.0",
+		"description": "Token-friendly OCS API for the Project Manager Nextcloud app. Every operation the web UI can do is also available here, meant for external/automated clients (scripts, AI agents pairing with a user, etc.) authenticated with a Nextcloud app password (Settings > Security > Create new app password) via HTTP Basic Auth. Every request must also carry the `OCS-APIRequest: true` header, per the standard Nextcloud OCS API convention."
+	},
+	"servers": [
+		{
+			"url": "https://{host}/ocs/v2.php/apps/projectmanager",
+			"description": "Base path on any Nextcloud instance running this app. Replace {host} with the instance's domain.",
+			"variables": {
+				"host": { "default": "your-nextcloud.example.com" }
+			}
+		}
+	],
+	"security": [{ "basicAuth": [] }],
+	"components": {
+		"securitySchemes": {
+			"basicAuth": {
+				"type": "http",
+				"scheme": "basic",
+				"description": "Nextcloud username + app password (NOT the account password). Generate one in Settings > Security > Devices & sessions > Create new app password."
+			}
+		},
+		"parameters": {
+			"OcsApiRequest": {
+				"name": "OCS-APIRequest",
+				"in": "header",
+				"required": true,
+				"schema": { "type": "string", "enum": ["true"] },
+				"description": "Required by all Nextcloud OCS endpoints."
+			}
+		},
+		"schemas": {
+			"Project": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"userId": { "type": "string" },
+					"name": { "type": "string" },
+					"hoursPerWorkingDay": { "type": "number", "format": "float", "default": 7 },
+					"createdAt": { "type": "string", "format": "date-time", "nullable": true },
+					"hourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "Optional hourly rate; when set together with showCostInSummary, the grid summary includes a computed cost column" },
+					"currencySymbol": { "type": "string", "default": "€", "description": "Shown after the cost value, e.g. \"350.00 €\"" },
+					"showCostInSummary": { "type": "boolean", "default": false }
+				}
+			},
+			"Module": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"projectId": { "type": "integer" },
+					"code": { "type": "string" },
+					"name": { "type": "string" },
+					"inEstimate": { "type": "boolean", "description": "true = counts toward the estimate (P1-P4 style); false = OTHERS, done but outside scope" },
+					"sortOrder": { "type": "integer" }
+				}
+			},
+			"Point": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"moduleId": { "type": "integer" },
+					"code": { "type": "string" },
+					"description": { "type": "string" },
+					"estimateH": { "type": "number", "format": "float", "nullable": true, "description": "null means no estimate (typically OTHERS points)" },
+					"status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"] },
+					"sortOrder": { "type": "integer" }
+				}
+			},
+			"Leaf": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"pointId": { "type": "integer" },
+					"description": { "type": "string" },
+					"workDate": { "type": "string", "format": "date" },
+					"sortOrder": { "type": "integer" }
+				}
+			},
+			"DayHours": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"projectId": { "type": "integer" },
+					"workDate": { "type": "string", "format": "date" },
+					"hours": { "type": "number", "format": "float" }
+				}
+			},
+			"Feature": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"projectId": { "type": "integer" },
+					"section": { "type": "string" },
+					"name": { "type": "string" },
+					"pointRef": { "type": "string" },
+					"status": { "type": "string", "enum": ["not_started", "in_progress", "done"] },
+					"businessValue": { "type": "string" },
+					"externalPending": { "type": "string" },
+					"sortOrder": { "type": "integer" }
+				}
+			},
+			"TestEntry": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"projectId": { "type": "integer" },
+					"area": { "type": "string" },
+					"profile": { "type": "string" },
+					"scenario": { "type": "string" },
+					"expected": { "type": "string" },
+					"status": { "type": "string", "enum": ["to_test", "passed", "failed"] },
+					"testDate": { "type": "string", "format": "date", "nullable": true },
+					"notes": { "type": "string" },
+					"sortOrder": { "type": "integer" }
+				}
+			},
+			"PointGrid": {
+				"allOf": [
+					{ "$ref": "#/components/schemas/Point" },
+					{
+						"type": "object",
+						"properties": {
+							"doneH": { "type": "number", "format": "float" },
+							"remainingH": { "type": "number", "format": "float", "nullable": true },
+							"pctByDay": { "type": "object", "additionalProperties": { "type": "integer" }, "description": "day (YYYY-MM-DD) -> integer percentage of that day's hours spent on this point" },
+							"leaves": { "type": "array", "items": { "$ref": "#/components/schemas/Leaf" } }
+						}
+					}
+				]
+			},
+			"ModuleGrid": {
+				"allOf": [
+					{ "$ref": "#/components/schemas/Module" },
+					{
+						"type": "object",
+						"properties": {
+							"estimateH": { "type": "number", "format": "float", "nullable": true },
+							"doneH": { "type": "number", "format": "float" },
+							"remainingH": { "type": "number", "format": "float", "nullable": true },
+							"pctByDay": { "type": "object", "additionalProperties": { "type": "integer" } },
+							"points": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" } }
+						}
+					}
+				]
+			},
+			"ProjectGrid": {
+				"type": "object",
+				"description": "The fully computed project grid: modules -> points -> leaves, with estimate/done/remaining hours, per-day percentages (largest-remainder split) and the project-level summary. Returned by GET /api/v1/projects/{id}.",
+				"properties": {
+					"project": {
+						"type": "object",
+						"properties": {
+							"id": { "type": "integer" },
+							"name": { "type": "string" },
+							"hoursPerWorkingDay": { "type": "number", "format": "float" },
+							"hourlyRate": { "type": "number", "format": "float", "nullable": true },
+							"currencySymbol": { "type": "string" },
+							"showCostInSummary": { "type": "boolean" }
+						}
+					},
+					"days": { "type": "array", "items": { "type": "string", "format": "date" }, "description": "ordered list of days that have logged hours and/or leaves" },
+					"hoursByDay": { "type": "object", "additionalProperties": { "type": "number", "format": "float" } },
+					"modules": { "type": "array", "items": { "$ref": "#/components/schemas/ModuleGrid" } },
+					"totalPctByDay": { "type": "object", "additionalProperties": { "type": "integer" }, "description": "should read ~100 on any day with logged leaves" },
+					"summary": {
+						"type": "object",
+						"properties": {
+							"estimatedH": { "type": "number", "format": "float" },
+							"estimatedDays": { "type": "number", "format": "float" },
+							"estimatedCost": { "type": "number", "format": "float", "nullable": true },
+							"doneInScopeH": { "type": "number", "format": "float" },
+							"doneInScopeDays": { "type": "number", "format": "float" },
+							"doneInScopeCost": { "type": "number", "format": "float", "nullable": true },
+							"doneOthersH": { "type": "number", "format": "float" },
+							"doneOthersDays": { "type": "number", "format": "float" },
+							"doneOthersCost": { "type": "number", "format": "float", "nullable": true },
+							"doneTotalH": { "type": "number", "format": "float" },
+							"doneTotalDays": { "type": "number", "format": "float" },
+							"doneTotalCost": { "type": "number", "format": "float", "nullable": true },
+							"remainingH": { "type": "number", "format": "float" },
+							"remainingDays": { "type": "number", "format": "float" },
+							"remainingCost": { "type": "number", "format": "float", "nullable": true },
+							"costEnabled": { "type": "boolean" },
+							"currencySymbol": { "type": "string" }
+						}
+					}
+				}
+			}
+		}
+	},
+	"paths": {
+		"/api/v1/help": {
+			"get": {
+				"operationId": "help",
+				"summary": "Human/AI-readable quick reference: what this API does, how to authenticate, and a condensed list of every endpoint. No authentication required — start here.",
+				"security": [],
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/v1/projects": {
+			"get": {
+				"operationId": "listProjects",
+				"summary": "List all projects owned by the authenticated user",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } } } } } }
+			},
+			"post": {
+				"operationId": "createProject",
+				"summary": "Create a new project",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"requestBody": {
+					"required": true,
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "hoursPerWorkingDay": { "type": "number", "default": 7 } } } } }
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } } }
+			}
+		},
+		"/api/v1/projects/example": {
+			"post": {
+				"operationId": "createExampleProject",
+				"summary": "Create a fully worked example project (modules, points, leaves, day hours, features, tests) so a new user can see how the tracker works without setting anything up",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } } }
+			}
+		},
+		"/api/v1/projects/{id}": {
+			"get": {
+				"operationId": "getProject",
+				"summary": "Get the fully computed project grid (estimate/done/remaining hours, per-day percentages, summary)",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectGrid" } } } }, "404": { "description": "Not found or not owned by the authenticated user" } }
+			},
+			"put": {
+				"operationId": "updateProject",
+				"summary": "Rename a project or change its hours-per-working-day constant",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": { "type": "string" },
+									"hoursPerWorkingDay": { "type": "number" },
+									"hourlyRate": { "type": "number", "nullable": true, "description": "only applied when hourlyRateProvided=true, so it can be explicitly cleared to null (disabling cost calculation)" },
+									"hourlyRateProvided": { "type": "boolean", "default": false },
+									"currencySymbol": { "type": "string" },
+									"showCostInSummary": { "type": "boolean" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteProject",
+				"summary": "Delete a project and everything under it (modules, points, leaves, day-hours, features, tests)",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		},
+		"/api/v1/projects/{projectId}/modules": {
+			"post": {
+				"operationId": "createModule",
+				"summary": "Create a module (grouping) within a project, e.g. P1 \"Structure\"",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"required": true,
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["code", "name"], "properties": { "code": { "type": "string" }, "name": { "type": "string" }, "inEstimate": { "type": "boolean", "default": true }, "sortOrder": { "type": "integer", "default": 0 } } } } }
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Module" } } } }, "404": { "description": "Project not found" } }
+			}
+		},
+		"/api/v1/modules/{id}": {
+			"put": {
+				"operationId": "updateModule",
+				"summary": "Update a module's code, name, in-estimate flag or sort order",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": { "content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "properties": { "code": { "type": "string" }, "name": { "type": "string" }, "inEstimate": { "type": "boolean" }, "sortOrder": { "type": "integer" } } } } } },
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Module" } } } }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteModule",
+				"summary": "Delete a module and all its points and leaves",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		},
+		"/api/v1/modules/{moduleId}/points": {
+			"post": {
+				"operationId": "createPoint",
+				"summary": "Create an estimable point within a module, e.g. P1.1",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "moduleId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"required": true,
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["code", "description"], "properties": { "code": { "type": "string" }, "description": { "type": "string" }, "estimateH": { "type": "number", "nullable": true }, "status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"], "default": "todo" }, "sortOrder": { "type": "integer", "default": 0 } } } } }
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Point" } } } }, "404": { "description": "Module not found" } }
+			}
+		},
+		"/api/v1/points/{id}": {
+			"put": {
+				"operationId": "updatePoint",
+				"summary": "Update a point (code, description, estimate, status, sort order)",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"code": { "type": "string" },
+									"description": { "type": "string" },
+									"estimateH": { "type": "number", "nullable": true, "description": "only applied when estimateHProvided=true, so it can be explicitly cleared to null" },
+									"estimateHProvided": { "type": "boolean", "default": false },
+									"status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"] },
+									"sortOrder": { "type": "integer" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Point" } } } }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deletePoint",
+				"summary": "Delete a point and all its leaves",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		},
+		"/api/v1/points/{pointId}/leaves": {
+			"post": {
+				"operationId": "createLeaf",
+				"summary": "Log a piece of work done on a point on a given day",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "pointId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"required": true,
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["description", "workDate"], "properties": { "description": { "type": "string" }, "workDate": { "type": "string", "format": "date" }, "sortOrder": { "type": "integer", "default": 0 } } } } }
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Leaf" } } } }, "400": { "description": "Invalid date" }, "404": { "description": "Point not found" } }
+			}
+		},
+		"/api/v1/leaves/{id}": {
+			"put": {
+				"operationId": "updateLeaf",
+				"summary": "Edit a leaf's description, date or sort order",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": { "content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "properties": { "description": { "type": "string" }, "workDate": { "type": "string", "format": "date" }, "sortOrder": { "type": "integer" } } } } } },
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Leaf" } } } }, "400": { "description": "Invalid date" }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteLeaf",
+				"summary": "Delete a leaf",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		},
+		"/api/v1/projects/{projectId}/day-hours/{date}": {
+			"put": {
+				"operationId": "setDayHours",
+				"summary": "Set the actual hours worked on a given day of the project (upsert)",
+				"parameters": [
+					{ "$ref": "#/components/parameters/OcsApiRequest" },
+					{ "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } },
+					{ "name": "date", "in": "path", "required": true, "schema": { "type": "string", "format": "date" } }
+				],
+				"requestBody": { "required": true, "content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["hours"], "properties": { "hours": { "type": "number" } } } } } },
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DayHours" } } } }, "404": { "description": "Project not found" } }
+			},
+			"delete": {
+				"operationId": "deleteDayHours",
+				"summary": "Remove the hours entry for a given day",
+				"parameters": [
+					{ "$ref": "#/components/parameters/OcsApiRequest" },
+					{ "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } },
+					{ "name": "date", "in": "path", "required": true, "schema": { "type": "string", "format": "date" } }
+				],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Project not found" } }
+			}
+		},
+		"/api/v1/projects/{projectId}/features": {
+			"get": {
+				"operationId": "listFeatures",
+				"summary": "List the features (proposal vs. status) tracked for a project",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Feature" } } } } }, "404": { "description": "Project not found" } }
+			},
+			"post": {
+				"operationId": "createFeature",
+				"summary": "Add a feature entry",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"required": ["section", "name"],
+								"properties": {
+									"section": { "type": "string" },
+									"name": { "type": "string" },
+									"pointRef": { "type": "string" },
+									"status": { "type": "string", "enum": ["not_started", "in_progress", "done"], "default": "not_started" },
+									"businessValue": { "type": "string" },
+									"externalPending": { "type": "string" },
+									"sortOrder": { "type": "integer", "default": 0 }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feature" } } } }, "404": { "description": "Project not found" } }
+			}
+		},
+		"/api/v1/features/{id}": {
+			"put": {
+				"operationId": "updateFeature",
+				"summary": "Edit a feature",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"section": { "type": "string" },
+									"name": { "type": "string" },
+									"pointRef": { "type": "string" },
+									"status": { "type": "string", "enum": ["not_started", "in_progress", "done"] },
+									"businessValue": { "type": "string" },
+									"externalPending": { "type": "string" },
+									"sortOrder": { "type": "integer" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feature" } } } }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteFeature",
+				"summary": "Delete a feature",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		},
+		"/api/v1/projects/{projectId}/tests": {
+			"get": {
+				"operationId": "listTests",
+				"summary": "List the validation test log entries for a project",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TestEntry" } } } } }, "404": { "description": "Project not found" } }
+			},
+			"post": {
+				"operationId": "createTest",
+				"summary": "Add a test log entry",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"required": ["area"],
+								"properties": {
+									"area": { "type": "string" },
+									"profile": { "type": "string" },
+									"scenario": { "type": "string" },
+									"expected": { "type": "string" },
+									"status": { "type": "string", "enum": ["to_test", "passed", "failed"], "default": "to_test" },
+									"testDate": { "type": "string", "format": "date", "nullable": true },
+									"notes": { "type": "string" },
+									"sortOrder": { "type": "integer", "default": 0 }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TestEntry" } } } }, "400": { "description": "Invalid date" }, "404": { "description": "Project not found" } }
+			}
+		},
+		"/api/v1/tests/{id}": {
+			"put": {
+				"operationId": "updateTest",
+				"summary": "Edit a test log entry",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"area": { "type": "string" },
+									"profile": { "type": "string" },
+									"scenario": { "type": "string" },
+									"expected": { "type": "string" },
+									"status": { "type": "string", "enum": ["to_test", "passed", "failed"] },
+									"testDate": { "type": "string", "format": "date", "nullable": true },
+									"notes": { "type": "string" },
+									"sortOrder": { "type": "integer" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TestEntry" } } } }, "400": { "description": "Invalid date" }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteTest",
+				"summary": "Delete a test log entry",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		}
+	}
+}
