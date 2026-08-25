@@ -34,8 +34,8 @@ class ProjectController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'GET', url: '/api/projects')]
-	public function index(): DataResponse {
-		return new DataResponse($this->projectService->findAll($this->getUserId()));
+	public function index(bool $includeArchived = false): DataResponse {
+		return new DataResponse($this->projectService->findAll($this->getUserId(), $includeArchived));
 	}
 
 	#[NoAdminRequired]
@@ -70,9 +70,10 @@ class ProjectController extends Controller {
 		bool $hourlyRateProvided = false,
 		?string $currencySymbol = null,
 		?bool $showCostInSummary = null,
+		?bool $archived = null,
 	): DataResponse {
 		try {
-			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary));
+			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}

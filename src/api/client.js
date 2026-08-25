@@ -5,7 +5,7 @@ const url = (path) => generateUrl('/apps/projectmanager' + path)
 const data = (promise) => promise.then((response) => response.data)
 
 export default {
-	listProjects: () => data(axios.get(url('/api/projects'))),
+	listProjects: (includeArchived = false) => data(axios.get(url('/api/projects'), { params: { includeArchived } })),
 	createProject: (payload) => data(axios.post(url('/api/projects'), payload)),
 	createExampleProject: () => data(axios.post(url('/api/projects/example'))),
 	getProject: (id) => data(axios.get(url(`/api/projects/${id}`))),
@@ -38,4 +38,11 @@ export default {
 	deleteTest: (id) => data(axios.delete(url(`/api/tests/${id}`))),
 
 	exportUrl: (projectId) => url(`/api/projects/${projectId}/export`),
+
+	backupExportUrl: () => url('/api/backup/export'),
+	backupImport: (file) => {
+		const formData = new FormData()
+		formData.append('file', file)
+		return data(axios.post(url('/api/backup/import'), formData))
+	},
 }

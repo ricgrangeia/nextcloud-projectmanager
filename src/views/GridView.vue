@@ -1,14 +1,14 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { t } from '@nextcloud/l10n'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
-import Cog from 'vue-material-design-icons/Cog.vue'
 import api from '../api/client.js'
 import StatusPill from '../components/StatusPill.vue'
 import EditableCell from '../components/EditableCell.vue'
+import BurndownChart from '../components/BurndownChart.vue'
 import { statusLabel } from '../utils/statusLabels.js'
 import { loadProjects } from '../store/index.js'
 
@@ -16,6 +16,7 @@ const props = defineProps({
 	id: { type: [String, Number], required: true },
 })
 
+const route = useRoute()
 const router = useRouter()
 
 const grid = ref(null)
@@ -40,6 +41,17 @@ async function load() {
 
 watch(() => props.id, load, { immediate: true })
 
+watch(
+	[grid, () => route.query.settings],
+	([currentGrid, settingsFlag]) => {
+		if (currentGrid && settingsFlag) {
+			openSettingsForm()
+			router.replace({ query: {} })
+		}
+	},
+	{ immediate: true },
+)
+
 function fmtH(value) {
 	return value === null || value === undefined ? '—' : Number(value).toFixed(2) + 'h'
 }
@@ -54,9 +66,12 @@ function fmtCost(value, symbol) {
 
 function openSettingsForm() {
 	settingsForm.value = {
+		name: grid.value.project.name,
+		hoursPerWorkingDay: grid.value.project.hoursPerWorkingDay,
 		hourlyRate: grid.value.project.hourlyRate ?? '',
 		currencySymbol: grid.value.project.currencySymbol,
 		showCostInSummary: grid.value.project.showCostInSummary,
+		archived: grid.value.project.archived,
 	}
 }
 
@@ -74,19 +89,61 @@ async function submitSettingsForm() {
 	const rateStr = String(settingsForm.value.hourlyRate).trim()
 	const hourlyRate = rateStr === '' ? null : Number(rateStr)
 	await api.updateProject(props.id, {
+		name: settingsForm.value.name,
+		hoursPerWorkingDay: Number(settingsForm.value.hoursPerWorkingDay) || 7,
 		hourlyRate,
 		hourlyRateProvided: true,
 		currencySymbol: settingsForm.value.currencySymbol || '€',
 		showCostInSummary: settingsForm.value.showCostInSummary,
 	})
 	settingsForm.value = null
+	await loadProjects()
 	await load()
+}
+
+async function toggleArchiveFromSettings() {
+	const newArchived = !settingsForm.value.archived
+	await api.updateProject(props.id, { archived: newArchived })
+	settingsForm.value = null
+	await loadProjects()
+	if (newArchived) {
+		router.push({ name: 'projects' })
+	} else {
+		await load()
+	}
+}
+
+async function deleteProjectFromSettings() {
+	if (!window.confirm(t('projectmanager', 'Delete this project and everything in it — modules, points, leaves, day hours, features and tests? This cannot be undone.'))) {
+		return
+	}
+	await api.deleteProject(props.id)
+	settingsForm.value = null
+	await loadProjects()
+	router.push({ name: 'projects' })
 }
 
 const settingsDialogButtons = computed(() => [
 	{ label: t('projectmanager', 'Cancel'), callback: cancelSettingsForm },
 	{ label: t('projectmanager', 'Save'), type: 'primary', nativeType: 'submit' },
 ])
+
+const burndown = computed(() => {
+	if (!grid.value || grid.value.days.length === 0) {
+		return null
+	}
+	const days = grid.value.days
+	const hoursByDay = grid.value.hoursByDay
+	const inScopeModules = grid.value.modules.filter((m) => m.inEstimate)
+	let cumulative = 0
+	const doneSeries = days.map((day) => {
+		const dayHours = hoursByDay[day] || 0
+		const doneForDay = inScopeModules.reduce((sum, m) => sum + ((m.pctByDay[day] || 0) / 100) * dayHours, 0)
+		cumulative += doneForDay
+		return Math.round(cumulative * 100) / 100
+	})
+	return { days, doneSeries, estimatedH: grid.value.summary.estimatedH }
+})
 
 async function createExampleFromSettings() {
 	const project = await api.createExampleProject()
@@ -446,15 +503,13 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 			</table>
 		</div>
 
-		<div class="summary">
-			<div class="summary-header">
-				<h3>{{ t('projectmanager', 'Summary') }}</h3>
-				<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Project settings')" :title="t('projectmanager', 'Project settings')" @click="openSettingsForm">
-					<Cog :size="18" />
-				</button>
-			</div>
-			<table class="summary-table">
-				<tbody>
+		<div class="summary-row">
+			<div class="summary">
+				<div class="summary-header">
+					<h3>{{ t('projectmanager', 'Summary') }}</h3>
+				</div>
+				<table class="summary-table">
+					<tbody>
 					<tr>
 						<td>{{ t('projectmanager', 'Estimated (in scope)') }}</td>
 						<td>{{ fmtH(grid.summary.estimatedH) }}</td>
@@ -485,8 +540,19 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						<td>{{ grid.summary.remainingDays }}d</td>
 						<td v-if="grid.summary.costEnabled">{{ fmtCost(grid.summary.remainingCost, grid.summary.currencySymbol) }}</td>
 					</tr>
-				</tbody>
-			</table>
+					</tbody>
+				</table>
+			</div>
+
+			<div v-if="burndown" class="burndown-card">
+				<h3 class="burndown-title">{{ t('projectmanager', 'Progress over time') }}</h3>
+				<BurndownChart
+					:days="burndown.days"
+					:done-series="burndown.doneSeries"
+					:estimated-h="burndown.estimatedH"
+					:done-label="t('projectmanager', 'Done (in scope)')"
+					:estimated-label="t('projectmanager', 'Estimated (in scope)')" />
+			</div>
 		</div>
 	</div>
 	<NcDialog
@@ -570,6 +636,14 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 		@submit.prevent="submitSettingsForm">
 		<div v-if="settingsForm" class="dialog-form">
 			<label class="dialog-field">
+				<span class="dialog-label">{{ t('projectmanager', 'Name') }}</span>
+				<input v-model="settingsForm.name" type="text" required>
+			</label>
+			<label class="dialog-field">
+				<span class="dialog-label">{{ t('projectmanager', 'Hours per working day') }}</span>
+				<input v-model="settingsForm.hoursPerWorkingDay" type="number" step="0.5" min="0">
+			</label>
+			<label class="dialog-field">
 				<span class="dialog-label">{{ t('projectmanager', 'Hourly rate') }}</span>
 				<input v-model="settingsForm.hourlyRate" type="number" step="0.01" :placeholder="t('projectmanager', 'Leave empty to disable')">
 			</label>
@@ -585,6 +659,14 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 			<hr class="dialog-separator">
 			<button type="button" class="link-btn" @click="createExampleFromSettings">
 				{{ t('projectmanager', 'Create example project') }}
+			</button>
+			<hr class="dialog-separator">
+			<button type="button" class="link-btn" @click="toggleArchiveFromSettings">
+				{{ settingsForm.archived ? t('projectmanager', 'Unarchive project') : t('projectmanager', 'Archive project') }}
+			</button>
+			<hr class="dialog-separator">
+			<button type="button" class="link-btn link-btn-danger" @click="deleteProjectFromSettings">
+				{{ t('projectmanager', 'Delete this project') }}
 			</button>
 		</div>
 	</NcDialog>
@@ -721,6 +803,10 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	font-size: 12px;
 }
 
+.link-btn-danger {
+	color: var(--color-error);
+}
+
 .row-actions {
 	white-space: nowrap;
 }
@@ -809,7 +895,15 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	width: 50px;
 }
 
+.summary-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 16px;
+}
+
 .summary {
+	flex: 0 0 auto;
 	max-width: 620px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius-large);
@@ -826,6 +920,21 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 
 .summary-header h3 {
 	margin: 0;
+}
+
+.burndown-card {
+	flex: 1 1 320px;
+	max-width: 620px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-large);
+	box-shadow: inset 0 3px 0 var(--color-primary-element);
+	padding: 8px 16px 16px;
+	box-sizing: border-box;
+}
+
+.burndown-title {
+	margin: 4px 0 0;
+	font-size: 14px;
 }
 
 .summary-table {

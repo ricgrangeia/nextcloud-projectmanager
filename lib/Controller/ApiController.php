@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\ProjectManager\Controller;
 
+use OCA\ProjectManager\Service\BackupService;
 use OCA\ProjectManager\Service\ExampleProjectService;
 use OCA\ProjectManager\Service\FeatureService;
 use OCA\ProjectManager\Service\ProjectService;
@@ -38,6 +39,7 @@ class ApiController extends OCSController {
 		private FeatureService $featureService,
 		private TestService $testService,
 		private ExampleProjectService $exampleProjectService,
+		private BackupService $backupService,
 		private IUserSession $userSession,
 	) {
 		parent::__construct($appName, $request);
@@ -69,11 +71,11 @@ class ApiController extends OCSController {
 			'fullSpec' => $host . '/custom_apps/projectmanager/openapi.json',
 			'fullSpecNote' => 'OpenAPI 3.0 document with every endpoint, parameter and response shape. Read this before guessing endpoint names.',
 			'quickReference' => [
-				['method' => 'GET', 'path' => '/api/v1/projects', 'summary' => 'List your projects'],
+				['method' => 'GET', 'path' => '/api/v1/projects', 'summary' => 'List your projects (archived ones excluded unless ?includeArchived=true)'],
 				['method' => 'POST', 'path' => '/api/v1/projects', 'summary' => 'Create a project (name, hoursPerWorkingDay)'],
 				['method' => 'POST', 'path' => '/api/v1/projects/example', 'summary' => 'Seed a fully worked example project'],
 				['method' => 'GET', 'path' => '/api/v1/projects/{id}', 'summary' => 'Get the fully computed grid: modules, points, leaves, done/remaining hours, summary'],
-				['method' => 'PUT', 'path' => '/api/v1/projects/{id}', 'summary' => 'Rename / change hoursPerWorkingDay, hourlyRate, currencySymbol, showCostInSummary'],
+				['method' => 'PUT', 'path' => '/api/v1/projects/{id}', 'summary' => 'Rename / change hoursPerWorkingDay, hourlyRate, currencySymbol, showCostInSummary, archived (true to archive, false to restore)'],
 				['method' => 'DELETE', 'path' => '/api/v1/projects/{id}', 'summary' => 'Delete a project and everything under it'],
 				['method' => 'POST', 'path' => '/api/v1/projects/{projectId}/modules', 'summary' => 'Create a module (code, name, inEstimate)'],
 				['method' => 'PUT', 'path' => '/api/v1/modules/{id}', 'summary' => 'Update a module'],
@@ -94,16 +96,48 @@ class ApiController extends OCSController {
 				['method' => 'POST', 'path' => '/api/v1/projects/{projectId}/tests', 'summary' => 'Create a test entry (area, profile, scenario, expected, status, testDate, notes)'],
 				['method' => 'PUT', 'path' => '/api/v1/tests/{id}', 'summary' => 'Update a test entry'],
 				['method' => 'DELETE', 'path' => '/api/v1/tests/{id}', 'summary' => 'Delete a test entry'],
+				['method' => 'GET', 'path' => '/api/v1/backup/export', 'summary' => 'Download a JSON snapshot of every project you own (for backup / server migration)'],
+				['method' => 'POST', 'path' => '/api/v1/backup/import', 'summary' => 'Restore from a backup JSON file (multipart/form-data, field name "file"). Always creates new projects.'],
 			],
 		]);
+	}
+
+	// --- Backup ---------------------------------------------------------
+
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/backup/export')]
+	public function backupExport(): DataResponse {
+		return new DataResponse($this->backupService->exportAll($this->getUserId()));
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/backup/import')]
+	public function backupImport(): DataResponse {
+		$uploaded = $this->request->getUploadedFile('file');
+		if ($uploaded === null || !is_string($uploaded['tmp_name'] ?? null) || !is_uploaded_file($uploaded['tmp_name'])) {
+			return new DataResponse(['message' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+		}
+
+		$contents = file_get_contents($uploaded['tmp_name']);
+		$data = $contents !== false ? json_decode($contents, true) : null;
+		if (!is_array($data)) {
+			return new DataResponse(['message' => 'Invalid JSON file'], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			return new DataResponse($this->backupService->importAll($this->getUserId(), $data));
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
 	}
 
 	// --- Projects -----------------------------------------------------
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/projects')]
-	public function listProjects(): DataResponse {
-		return new DataResponse($this->projectService->findAll($this->getUserId()));
+	public function listProjects(bool $includeArchived = false): DataResponse {
+		return new DataResponse($this->projectService->findAll($this->getUserId(), $includeArchived));
 	}
 
 	#[NoAdminRequired]
@@ -138,9 +172,10 @@ class ApiController extends OCSController {
 		bool $hourlyRateProvided = false,
 		?string $currencySymbol = null,
 		?bool $showCostInSummary = null,
+		?bool $archived = null,
 	): DataResponse {
 		try {
-			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary));
+			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived));
 		} catch (DoesNotExistException) {
 			return $this->notFound();
 		}

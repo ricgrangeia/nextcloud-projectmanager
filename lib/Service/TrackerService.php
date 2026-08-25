@@ -327,6 +327,7 @@ class TrackerService {
 				'hourlyRate' => $hourlyRate,
 				'currencySymbol' => $project->getCurrencySymbol(),
 				'showCostInSummary' => $project->getShowCostInSummary(),
+				'archived' => $project->getArchived(),
 			],
 			'days' => $days,
 			'hoursByDay' => $hoursByDay,

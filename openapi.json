@@ -43,7 +43,8 @@
 					"createdAt": { "type": "string", "format": "date-time", "nullable": true },
 					"hourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "Optional hourly rate; when set together with showCostInSummary, the grid summary includes a computed cost column" },
 					"currencySymbol": { "type": "string", "default": "€", "description": "Shown after the cost value, e.g. \"350.00 €\"" },
-					"showCostInSummary": { "type": "boolean", "default": false }
+					"showCostInSummary": { "type": "boolean", "default": false },
+					"archived": { "type": "boolean", "default": false, "description": "Archived projects are hidden from the default project list but keep all their data" }
 				}
 			},
 			"Module": {
@@ -204,7 +205,7 @@
 			"get": {
 				"operationId": "listProjects",
 				"summary": "List all projects owned by the authenticated user",
-				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "includeArchived", "in": "query", "required": false, "schema": { "type": "boolean", "default": false }, "description": "When true, archived projects are included in the results alongside active ones" }],
 				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } } } } } }
 			},
 			"post": {
@@ -224,6 +225,29 @@
 				"summary": "Create a fully worked example project (modules, points, leaves, day hours, features, tests) so a new user can see how the tracker works without setting anything up",
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
 				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } } }
+			}
+		},
+		"/api/v1/backup/export": {
+			"get": {
+				"operationId": "backupExport",
+				"summary": "Export every project owned by the authenticated user (modules, points, leaves, day hours, features, tests) as a single JSON backup document, e.g. before migrating to a new server",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "exportVersion": { "type": "integer" }, "exportedAt": { "type": "string" }, "projects": { "type": "array", "items": { "type": "object" } } } } } } } }
+			}
+		},
+		"/api/v1/backup/import": {
+			"post": {
+				"operationId": "backupImport",
+				"summary": "Import a JSON backup document previously produced by backupExport. Always creates new projects — never overwrites or merges with existing data.",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"requestBody": {
+					"required": true,
+					"content": { "multipart/form-data": { "schema": { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "format": "binary" } } } } }
+				},
+				"responses": {
+					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "features": { "type": "integer" }, "tests": { "type": "integer" } } } } } },
+					"400": { "description": "Missing/invalid file, or malformed backup structure" }
+				}
 			}
 		},
 		"/api/v1/projects/{id}": {
@@ -248,7 +272,8 @@
 									"hourlyRate": { "type": "number", "nullable": true, "description": "only applied when hourlyRateProvided=true, so it can be explicitly cleared to null (disabling cost calculation)" },
 									"hourlyRateProvided": { "type": "boolean", "default": false },
 									"currencySymbol": { "type": "string" },
-									"showCostInSummary": { "type": "boolean" }
+									"showCostInSummary": { "type": "boolean" },
+									"archived": { "type": "boolean", "description": "Set to true to archive the project (hides it from the default project list without deleting anything), or false to restore it" }
 								}
 							}
 						}

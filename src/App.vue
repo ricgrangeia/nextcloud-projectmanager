@@ -6,10 +6,13 @@ import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
 import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import Cog from 'vue-material-design-icons/Cog.vue'
 import { t } from '@nextcloud/l10n'
 import api from './api/client.js'
-import { state, loadProjects } from './store/index.js'
+import { state, loadProjects, toggleShowArchived } from './store/index.js'
 import HelpButton from './components/HelpButton.vue'
+import BackupDialog from './components/BackupDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +33,16 @@ function openProject(event, project) {
 	event?.preventDefault?.()
 	router.push({ name: 'grid', params: { id: project.id } })
 }
+
+function projectDisplayName(project) {
+	return project.archived
+		? `${project.name} (${t('projectmanager', 'archived')})`
+		: project.name
+}
+
+function openProjectSettings(project) {
+	router.push({ name: 'grid', params: { id: project.id }, query: { settings: '1' } })
+}
 </script>
 
 <template>
@@ -39,9 +52,22 @@ function openProject(event, project) {
 				<NcAppNavigationItem
 					v-for="project in state.projects"
 					:key="project.id"
-					:name="project.name"
+					:name="projectDisplayName(project)"
+					:class="{ 'is-archived': project.archived }"
 					:active="route.params.id === String(project.id)"
-					@click="event => openProject(event, project)" />
+					@click="event => openProject(event, project)">
+					<template #actions>
+						<NcActionButton :aria-label="t('projectmanager', 'Project settings')" @click.stop="openProjectSettings(project)">
+							<template #icon>
+								<Cog :size="16" />
+							</template>
+							{{ t('projectmanager', 'Project settings') }}
+						</NcActionButton>
+					</template>
+				</NcAppNavigationItem>
+				<NcAppNavigationItem
+					:name="state.showArchived ? t('projectmanager', 'Hide archived projects') : t('projectmanager', 'Show archived projects')"
+					@click="toggleShowArchived" />
 			</template>
 			<template #footer>
 				<div class="nav-footer">
@@ -61,7 +87,7 @@ function openProject(event, project) {
 						<p>{{ t('projectmanager', 'A module can count towards the estimate, or be marked OTHERS. OTHERS work is still tracked and shown, but kept separate from the original estimate — use it for extra requests, bug fixes, or anything outside what was originally planned.') }}</p>
 
 						<h4>{{ t('projectmanager', 'Summary') }}</h4>
-						<p>{{ t('projectmanager', 'The Summary card shows Estimated, Done and Remaining totals in hours and days (1 day = the project\'s hours-per-working-day, set in Project settings — the gear icon next to Summary).') }}</p>
+						<p>{{ t('projectmanager', 'The Summary card shows Estimated, Done and Remaining totals in hours and days (1 day = the project\'s hours-per-working-day, set in Project settings — hover a project in the sidebar and click its gear icon).') }}</p>
 
 						<h4>{{ t('projectmanager', 'Features') }}</h4>
 						<p>{{ t('projectmanager', 'The Features tab lists what was sold or proposed to the client, tracked against its current status. "Point" is an optional reference to a related Point code — it doesn\'t affect any calculation. "External pending" is for dependencies on someone else.') }}</p>
@@ -72,6 +98,7 @@ function openProject(event, project) {
 						<h4>{{ t('projectmanager', 'Cost (optional)') }}</h4>
 						<p>{{ t('projectmanager', 'In Project settings you can set an hourly rate and currency symbol; enabling "Show cost in the summary" adds a cost column computed as hours × rate.') }}</p>
 					</HelpButton>
+					<BackupDialog />
 				</div>
 			</template>
 		</NcAppNavigation>
@@ -84,6 +111,11 @@ function openProject(event, project) {
 <style scoped>
 :deep(.app-navigation-entry.active .app-navigation-entry__name) {
 	font-weight: bold;
+}
+
+.is-archived :deep(.app-navigation-entry__name) {
+	opacity: 0.6;
+	font-style: italic;
 }
 
 .nav-footer {

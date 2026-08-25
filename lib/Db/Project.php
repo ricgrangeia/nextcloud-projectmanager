@@ -22,6 +22,8 @@ use OCP\DB\Types;
  * @method void setCurrencySymbol(string $currencySymbol)
  * @method bool getShowCostInSummary()
  * @method void setShowCostInSummary(bool $showCostInSummary)
+ * @method bool getArchived()
+ * @method void setArchived(bool $archived)
  */
 class Project extends Entity implements \JsonSerializable {
 	protected string $userId = '';
@@ -31,6 +33,7 @@ class Project extends Entity implements \JsonSerializable {
 	protected ?float $hourlyRate = null;
 	protected string $currencySymbol = '€';
 	protected bool $showCostInSummary = false;
+	protected bool $archived = false;
 
 	public function __construct() {
 		$this->addType('userId', Types::STRING);
@@ -40,6 +43,7 @@ class Project extends Entity implements \JsonSerializable {
 		$this->addType('hourlyRate', Types::FLOAT);
 		$this->addType('currencySymbol', Types::STRING);
 		$this->addType('showCostInSummary', Types::BOOLEAN);
+		$this->addType('archived', Types::BOOLEAN);
 	}
 
 	public function jsonSerialize(): array {
@@ -52,6 +56,7 @@ class Project extends Entity implements \JsonSerializable {
 			'hourlyRate' => $this->hourlyRate,
 			'currencySymbol' => $this->currencySymbol,
 			'showCostInSummary' => $this->showCostInSummary,
+			'archived' => $this->archived,
 		];
 	}
 }

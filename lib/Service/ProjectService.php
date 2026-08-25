@@ -28,8 +28,8 @@ class ProjectService {
 	}
 
 	/** @return Project[] */
-	public function findAll(string $userId): array {
-		return $this->projectMapper->findAllForUser($userId);
+	public function findAll(string $userId, bool $includeArchived = false): array {
+		return $this->projectMapper->findAllForUser($userId, $includeArchived);
 	}
 
 	/**
@@ -62,6 +62,7 @@ class ProjectService {
 		bool $hourlyRateProvided = false,
 		?string $currencySymbol = null,
 		?bool $showCostInSummary = null,
+		?bool $archived = null,
 	): Project {
 		$project = $this->find($id, $userId);
 		if ($name !== null) {
@@ -78,6 +79,9 @@ class ProjectService {
 		}
 		if ($showCostInSummary !== null) {
 			$project->setShowCostInSummary($showCostInSummary);
+		}
+		if ($archived !== null) {
+			$project->setArchived($archived);
 		}
 		return $this->projectMapper->update($project);
 	}
