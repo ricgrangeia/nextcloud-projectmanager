@@ -746,7 +746,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 .tracker-table th,
 .tracker-table td {
 	box-sizing: border-box;
-	border: 1px solid var(--color-border);
+	border: 2px solid var(--color-border);
 	padding: 4px 8px;
 	white-space: nowrap;
 }
@@ -764,6 +764,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 .header-row th {
 	background-color: var(--color-primary-element);
 	color: var(--color-primary-element-text);
+	font-weight: bold;
 	position: sticky;
 	top: 0;
 	z-index: 2;
@@ -953,13 +954,15 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 
 .day-header {
 	position: relative;
-	padding-right: 20px !important;
+	padding-top: 8px;
+	padding-bottom: 20px !important;
 }
 
 .day-delete-btn {
 	position: absolute;
-	top: 2px;
-	right: 2px;
+	bottom: 2px;
+	left: 50%;
+	transform: translateX(-50%);
 	width: 16px;
 	height: 16px;
 	color: var(--color-primary-element-text);
