@@ -5,6 +5,8 @@ import { t } from '@nextcloud/l10n'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
+import ChevronDown from 'vue-material-design-icons/ChevronDown.vue'
+import ChevronRight from 'vue-material-design-icons/ChevronRight.vue'
 import api from '../api/client.js'
 import StatusPill from '../components/StatusPill.vue'
 import EditableCell from '../components/EditableCell.vue'
@@ -20,6 +22,7 @@ const route = useRoute()
 const router = useRouter()
 
 const grid = ref(null)
+const summaryCollapsed = ref(false)
 const newDay = ref('')
 const newDayHours = ref(7)
 const moduleForm = ref(null)
@@ -375,7 +378,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 
 <template>
 	<div v-if="grid" class="grid-view">
-		<div class="grid-scroll">
+		<div class="grid-scroll" :class="{ 'grid-scroll-expanded': summaryCollapsed }">
 			<table class="tracker-table">
 				<thead>
 					<tr class="header-row">
@@ -530,7 +533,12 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 			</table>
 		</div>
 
-		<div class="summary-row">
+		<button type="button" class="summary-toggle" @click="summaryCollapsed = !summaryCollapsed">
+			<ChevronRight v-if="summaryCollapsed" :size="16" />
+			<ChevronDown v-else :size="16" />
+			{{ summaryCollapsed ? t('projectmanager', 'Show summary') : t('projectmanager', 'Hide summary') }}
+		</button>
+		<div v-show="!summaryCollapsed" class="summary-row">
 			<div class="summary">
 				<div class="summary-header">
 					<h3>{{ t('projectmanager', 'Summary') }}</h3>
@@ -721,6 +729,11 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius-large);
 	margin-bottom: 24px;
+	transition: max-height 0.15s ease;
+}
+
+.grid-scroll-expanded {
+	max-height: 85vh;
 }
 
 .tracker-table {
@@ -1000,6 +1013,23 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 
 .new-day-hours {
 	width: 50px;
+}
+
+.summary-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: none;
+	border: none;
+	color: var(--color-text-maxcontrast);
+	cursor: pointer;
+	padding: 4px 2px;
+	margin-bottom: 4px;
+	font-size: 13px;
+}
+
+.summary-toggle:hover {
+	color: var(--color-main-text);
 }
 
 .summary-row {

@@ -136,7 +136,9 @@
         "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "Os projetos deste cliente usam esta tarifa horária a menos que definam a sua própria, e usam sempre a moeda deste cliente.",
         "Clients (optional)": "Clientes (opcional)",
         "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Agrupa projetos sob um Cliente usando o botão \"+ Client\" na barra lateral. Um cliente pode ter a sua própria tarifa horária e moeda: os seus projetos usam essa moeda, e usam a sua tarifa a menos que definam a sua própria — útil quando o mesmo cliente tem projetos faturados a tarifas diferentes.",
-        "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Clica no nome de um cliente para ver um resumo combinando as horas Estimadas, Feitas e Restantes (e custo) de todos os seus projetos."
+        "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Clica no nome de um cliente para ver um resumo combinando as horas Estimadas, Feitas e Restantes (e custo) de todos os seus projetos.",
+        "Show summary": "Mostrar resumo",
+        "Hide summary": "Ocultar resumo"
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }
