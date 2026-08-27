@@ -123,7 +123,20 @@
         "Archive project": "Arquivar projeto",
         "Unarchive project": "Desarquivar projeto",
         "Progress over time": "Progresso ao longo do tempo",
-        "Day-hours entries": "Entradas de horas/dia"
+        "Day-hours entries": "Entradas de horas/dia",
+        "Client": "Cliente",
+        "No client": "Sem cliente",
+        "New client": "Novo cliente",
+        "+ Client": "+ Cliente",
+        "Delete client": "Apagar cliente",
+        "Delete this client? Its projects are kept, just unassigned.": "Apagar este cliente? Os projetos são mantidos, apenas ficam sem cliente atribuído.",
+        "Client settings": "Definições do cliente",
+        "Leave empty to use the client's rate ({rate})": "Deixe vazio para usar a tarifa do cliente ({rate})",
+        "This project uses its client's currency: {symbol}": "Este projeto usa a moeda do cliente: {symbol}",
+        "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "Os projetos deste cliente usam esta tarifa horária a menos que definam a sua própria, e usam sempre a moeda deste cliente.",
+        "Clients (optional)": "Clientes (opcional)",
+        "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Agrupa projetos sob um Cliente usando o botão \"+ Client\" na barra lateral. Um cliente pode ter a sua própria tarifa horária e moeda: os seus projetos usam essa moeda, e usam a sua tarifa a menos que definam a sua própria — útil quando o mesmo cliente tem projetos faturados a tarifas diferentes.",
+        "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Clica no nome de um cliente para ver um resumo combinando as horas Estimadas, Feitas e Restantes (e custo) de todos os seus projetos."
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

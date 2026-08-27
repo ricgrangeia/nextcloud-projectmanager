@@ -124,6 +124,19 @@ OC.L10N.register(
     "Archive project": "Project archiveren",
     "Unarchive project": "Archivering ongedaan maken",
     "Progress over time": "Voortgang in de tijd",
-    "Day-hours entries": "Uren/dag-items"
+    "Day-hours entries": "Uren/dag-items",
+    "Client": "Klant",
+    "No client": "Geen klant",
+    "New client": "Nieuwe klant",
+    "+ Client": "+ Klant",
+    "Delete client": "Klant verwijderen",
+    "Delete this client? Its projects are kept, just unassigned.": "Deze klant verwijderen? De projecten blijven behouden, ze worden alleen niet meer gekoppeld.",
+    "Client settings": "Klantinstellingen",
+    "Leave empty to use the client's rate ({rate})": "Laat leeg om het tarief van de klant te gebruiken ({rate})",
+    "This project uses its client's currency: {symbol}": "Dit project gebruikt de valuta van de klant: {symbol}",
+    "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "Projecten van deze klant gebruiken dit uurtarief tenzij ze hun eigen tarief instellen, en gebruiken altijd de valuta van deze klant.",
+    "Clients (optional)": "Klanten (optioneel)",
+    "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Groepeer projecten onder een Klant met de knop \"+ Client\" in de zijbalk. Een klant kan een eigen uurtarief en valuta hebben: de projecten van die klant gebruiken die valuta, en gebruiken het tarief van de klant tenzij ze hun eigen tarief instellen — handig wanneer dezelfde klant projecten heeft die tegen verschillende tarieven worden gefactureerd.",
+    "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Klik op de naam van een klant om een samenvatting te zien die de uren Geschat, Voltooid en Resterend (en de kosten) van al zijn projecten combineert."
 },
 "nplurals=2; plural=(n != 1);");

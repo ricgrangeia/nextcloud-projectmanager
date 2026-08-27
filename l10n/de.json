@@ -123,7 +123,20 @@
         "Archive project": "Projekt archivieren",
         "Unarchive project": "Archivierung aufheben",
         "Progress over time": "Fortschritt im Zeitverlauf",
-        "Day-hours entries": "Stunden/Tag-Einträge"
+        "Day-hours entries": "Stunden/Tag-Einträge",
+        "Client": "Kunde",
+        "No client": "Kein Kunde",
+        "New client": "Neuer Kunde",
+        "+ Client": "+ Kunde",
+        "Delete client": "Kunde löschen",
+        "Delete this client? Its projects are kept, just unassigned.": "Diesen Kunden löschen? Seine Projekte bleiben erhalten und werden nur nicht mehr zugeordnet.",
+        "Client settings": "Kundeneinstellungen",
+        "Leave empty to use the client's rate ({rate})": "Leer lassen, um den Satz des Kunden zu verwenden ({rate})",
+        "This project uses its client's currency: {symbol}": "Dieses Projekt verwendet die Währung seines Kunden: {symbol}",
+        "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "Projekte dieses Kunden verwenden diesen Stundensatz, sofern sie keinen eigenen festlegen, und verwenden immer die Währung dieses Kunden.",
+        "Clients (optional)": "Kunden (optional)",
+        "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Gruppieren Sie Projekte unter einem Kunden mit der Schaltfläche „+ Client“ in der Seitenleiste. Ein Kunde kann einen eigenen Stundensatz und eine eigene Währung haben: seine Projekte verwenden diese Währung und seinen Satz, sofern sie keinen eigenen festlegen — nützlich, wenn derselbe Kunde Projekte zu unterschiedlichen Sätzen abrechnet.",
+        "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Klicken Sie auf den Namen eines Kunden, um eine Zusammenfassung zu sehen, die Geschätzt, Erledigt und Verbleibend (und Kosten) über alle seine Projekte hinweg kombiniert."
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

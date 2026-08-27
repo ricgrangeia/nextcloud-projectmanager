@@ -12,6 +12,12 @@ export default {
 	updateProject: (id, payload) => data(axios.put(url(`/api/projects/${id}`), payload)),
 	deleteProject: (id) => data(axios.delete(url(`/api/projects/${id}`))),
 
+	listClients: () => data(axios.get(url('/api/clients'))),
+	createClient: (payload) => data(axios.post(url('/api/clients'), payload)),
+	getClient: (id) => data(axios.get(url(`/api/clients/${id}`))),
+	updateClient: (id, payload) => data(axios.put(url(`/api/clients/${id}`), payload)),
+	deleteClient: (id) => data(axios.delete(url(`/api/clients/${id}`))),
+
 	createModule: (projectId, payload) => data(axios.post(url(`/api/projects/${projectId}/modules`), payload)),
 	updateModule: (id, payload) => data(axios.put(url(`/api/modules/${id}`), payload)),
 	deleteModule: (id) => data(axios.delete(url(`/api/modules/${id}`))),

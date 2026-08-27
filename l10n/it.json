@@ -123,7 +123,20 @@
         "Archive project": "Archivia progetto",
         "Unarchive project": "Rimuovi dall'archivio",
         "Progress over time": "Andamento nel tempo",
-        "Day-hours entries": "Voci di ore/giorno"
+        "Day-hours entries": "Voci di ore/giorno",
+        "Client": "Cliente",
+        "No client": "Nessun cliente",
+        "New client": "Nuovo cliente",
+        "+ Client": "+ Cliente",
+        "Delete client": "Elimina cliente",
+        "Delete this client? Its projects are kept, just unassigned.": "Eliminare questo cliente? I suoi progetti vengono mantenuti, semplicemente non più assegnati.",
+        "Client settings": "Impostazioni cliente",
+        "Leave empty to use the client's rate ({rate})": "Lascia vuoto per usare la tariffa del cliente ({rate})",
+        "This project uses its client's currency: {symbol}": "Questo progetto usa la valuta del suo cliente: {symbol}",
+        "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "I progetti di questo cliente usano questa tariffa oraria a meno che non ne impostino una propria, e usano sempre la valuta di questo cliente.",
+        "Clients (optional)": "Clienti (opzionale)",
+        "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Raggruppa i progetti sotto un Cliente usando il pulsante \"+ Client\" nella barra laterale. Un cliente può avere una propria tariffa oraria e valuta: i suoi progetti usano quella valuta, e usano la sua tariffa a meno che non ne impostino una propria — utile quando lo stesso cliente ha progetti fatturati a tariffe diverse.",
+        "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Fai clic sul nome di un cliente per vedere un riepilogo che combina le ore Stimato, Completato e Rimanente (e il costo) di tutti i suoi progetti."
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

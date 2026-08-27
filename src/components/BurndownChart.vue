@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
 	days: { type: Array, required: true },
@@ -15,6 +15,9 @@ const PAD_LEFT = 42
 const PAD_RIGHT = 10
 const PAD_TOP = 10
 const PAD_BOTTOM = 20
+
+const wrapperRef = ref(null)
+const hovered = ref(null)
 
 const maxY = computed(() => Math.max(props.estimatedH, ...props.doneSeries, 1))
 
@@ -35,26 +38,50 @@ const donePoints = computed(() => props.doneSeries.map((v, i) => `${x(i)},${y(v)
 const estimatedY = computed(() => y(props.estimatedH))
 const firstDay = computed(() => props.days[0])
 const lastDay = computed(() => props.days[props.days.length - 1])
+
+function onPointHover(i, event) {
+	const rect = wrapperRef.value.getBoundingClientRect()
+	hovered.value = {
+		index: i,
+		x: event.clientX - rect.left,
+		y: event.clientY - rect.top,
+	}
+}
+
+function onPointLeave() {
+	hovered.value = null
+}
 </script>
 
 <template>
-	<div class="burndown">
-		<svg :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" preserveAspectRatio="none" class="burndown-svg">
+	<div ref="wrapperRef" class="burndown">
+		<svg :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" preserveAspectRatio="none" class="burndown-svg" @mouseleave="onPointLeave">
 			<line :x1="PAD_LEFT" :y1="PAD_TOP" :x2="PAD_LEFT" :y2="HEIGHT - PAD_BOTTOM" class="axis-line" />
 			<line :x1="PAD_LEFT" :y1="HEIGHT - PAD_BOTTOM" :x2="WIDTH - PAD_RIGHT" :y2="HEIGHT - PAD_BOTTOM" class="axis-line" />
 
 			<line :x1="PAD_LEFT" :y1="estimatedY" :x2="WIDTH - PAD_RIGHT" :y2="estimatedY" class="estimated-line" />
 
 			<polyline :points="donePoints" fill="none" class="done-line" />
-			<circle v-for="(v, i) in doneSeries" :key="i" :cx="x(i)" :cy="y(v)" r="2.5" class="done-dot">
-				<title>{{ days[i] }}: {{ v.toFixed(2) }}h</title>
-			</circle>
+			<circle v-for="(v, i) in doneSeries" :key="'dot-' + i" :cx="x(i)" :cy="y(v)" r="2.5" class="done-dot" :class="{ 'done-dot-active': hovered && hovered.index === i }" />
+			<circle
+				v-for="(v, i) in doneSeries"
+				:key="'hit-' + i"
+				:cx="x(i)"
+				:cy="y(v)"
+				r="9"
+				class="done-hit"
+				@mouseenter="onPointHover(i, $event)"
+				@mousemove="onPointHover(i, $event)" />
 
 			<text :x="4" :y="PAD_TOP + 4" class="axis-label">{{ maxY.toFixed(0) }}h</text>
 			<text :x="4" :y="HEIGHT - PAD_BOTTOM" class="axis-label">0h</text>
 			<text :x="PAD_LEFT" :y="HEIGHT - 4" class="axis-label">{{ firstDay }}</text>
 			<text :x="WIDTH - PAD_RIGHT" :y="HEIGHT - 4" text-anchor="end" class="axis-label">{{ lastDay }}</text>
 		</svg>
+		<div v-if="hovered" class="burndown-tooltip" :style="{ left: hovered.x + 'px', top: hovered.y + 'px' }">
+			<strong>{{ days[hovered.index] }}</strong>
+			<span>{{ doneSeries[hovered.index].toFixed(2) }}h</span>
+		</div>
 		<div class="burndown-legend">
 			<span class="legend-item"><span class="legend-swatch legend-swatch-done" /> {{ doneLabel }}</span>
 			<span class="legend-item"><span class="legend-swatch legend-swatch-estimated" /> {{ estimatedLabel }}</span>
@@ -64,6 +91,7 @@ const lastDay = computed(() => props.days[props.days.length - 1])
 
 <style scoped>
 .burndown {
+	position: relative;
 	margin-top: 12px;
 }
 
@@ -91,11 +119,47 @@ const lastDay = computed(() => props.days[props.days.length - 1])
 
 .done-dot {
 	fill: var(--color-primary-element);
+	pointer-events: none;
+}
+
+.done-dot-active {
+	r: 4;
+	stroke: var(--color-main-background);
+	stroke-width: 1.5;
+}
+
+.done-hit {
+	fill: transparent;
+	pointer-events: all;
+	cursor: pointer;
 }
 
 .axis-label {
 	font-size: 9px;
 	fill: var(--color-text-maxcontrast);
+}
+
+.burndown-tooltip {
+	position: absolute;
+	transform: translate(-50%, calc(-100% - 10px));
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 6px 10px;
+	background-color: var(--color-main-background);
+	color: var(--color-main-text);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-large);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	font-size: 12px;
+	white-space: nowrap;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.burndown-tooltip strong {
+	font-size: 11px;
+	color: var(--color-text-maxcontrast);
 }
 
 .burndown-legend {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\ProjectManager\Service;
 
+use OCA\ProjectManager\Db\Client;
+use OCA\ProjectManager\Db\ClientMapper;
 use OCA\ProjectManager\Db\DayHours;
 use OCA\ProjectManager\Db\DayHoursMapper;
 use OCA\ProjectManager\Db\Feature;
@@ -30,6 +32,7 @@ class BackupService {
 
 	public function __construct(
 		private ProjectMapper $projectMapper,
+		private ClientMapper $clientMapper,
 		private ModuleMapper $moduleMapper,
 		private PointMapper $pointMapper,
 		private LeafMapper $leafMapper,
@@ -40,19 +43,31 @@ class BackupService {
 	}
 
 	public function exportAll(string $userId): array {
+		$clients = $this->clientMapper->findAllForUser($userId);
+		$clientNamesById = [];
+		foreach ($clients as $client) {
+			$clientNamesById[$client->getId()] = $client->getName();
+		}
+
 		$projects = array_map(
-			fn (Project $project) => $this->exportProject($project),
+			fn (Project $project) => $this->exportProject($project, $clientNamesById),
 			$this->projectMapper->findAllForUser($userId, true),
 		);
 
 		return [
 			'exportVersion' => self::EXPORT_VERSION,
 			'exportedAt' => (new \DateTimeImmutable())->format(DATE_ATOM),
+			'clients' => array_map(static fn (Client $c) => [
+				'name' => $c->getName(),
+				'hourlyRate' => $c->getHourlyRate(),
+				'currencySymbol' => $c->getCurrencySymbol(),
+			], $clients),
 			'projects' => $projects,
 		];
 	}
 
-	private function exportProject(Project $project): array {
+	/** @param array<int, string> $clientNamesById */
+	private function exportProject(Project $project, array $clientNamesById): array {
 		$modules = $this->moduleMapper->findAllForProject($project->getId());
 		$moduleIds = array_map(static fn (Module $m) => $m->getId(), $modules);
 		$points = $this->pointMapper->findAllForModules($moduleIds);
@@ -101,6 +116,7 @@ class BackupService {
 			'currencySymbol' => $project->getCurrencySymbol(),
 			'showCostInSummary' => $project->getShowCostInSummary(),
 			'archived' => $project->getArchived(),
+			'clientName' => $project->getClientId() !== null ? ($clientNamesById[$project->getClientId()] ?? null) : null,
 			'modules' => $moduleExports,
 			'dayHours' => array_map(static fn (DayHours $d) => [
 				'workDate' => $d->getWorkDate()->format('Y-m-d'),
@@ -136,9 +152,37 @@ class BackupService {
 			throw new \InvalidArgumentException('Not a valid Project Manager backup file');
 		}
 
-		$counts = ['projects' => 0, 'modules' => 0, 'points' => 0, 'leaves' => 0, 'dayHours' => 0, 'features' => 0, 'tests' => 0];
+		$counts = ['clients' => 0, 'projects' => 0, 'modules' => 0, 'points' => 0, 'leaves' => 0, 'dayHours' => 0, 'features' => 0, 'tests' => 0];
+
+		/** @var array<string, int> $clientIdsByName */
+		$clientIdsByName = [];
+		foreach ($this->clientMapper->findAllForUser($userId) as $client) {
+			$clientIdsByName[$client->getName()] = $client->getId();
+		}
+
+		foreach ($data['clients'] ?? [] as $clientData) {
+			$name = (string) ($clientData['name'] ?? '');
+			if ($name === '' || isset($clientIdsByName[$name])) {
+				continue;
+			}
+			$client = new Client();
+			$client->setUserId($userId);
+			$client->setName($name);
+			$client->setHourlyRate(isset($clientData['hourlyRate']) && $clientData['hourlyRate'] !== null ? (float) $clientData['hourlyRate'] : null);
+			$client->setCurrencySymbol((string) ($clientData['currencySymbol'] ?? '€'));
+			$client->setCreatedAt(new \DateTimeImmutable());
+			$client = $this->clientMapper->insert($client);
+			$clientIdsByName[$name] = $client->getId();
+			$counts['clients']++;
+		}
 
 		foreach ($data['projects'] as $projectData) {
+			$clientId = null;
+			$clientName = $projectData['clientName'] ?? null;
+			if (is_string($clientName) && $clientName !== '') {
+				$clientId = $clientIdsByName[$clientName] ?? null;
+			}
+
 			$project = new Project();
 			$project->setUserId($userId);
 			$project->setName((string) ($projectData['name'] ?? 'Imported project'));
@@ -148,6 +192,7 @@ class BackupService {
 			$project->setCurrencySymbol((string) ($projectData['currencySymbol'] ?? '€'));
 			$project->setShowCostInSummary((bool) ($projectData['showCostInSummary'] ?? false));
 			$project->setArchived((bool) ($projectData['archived'] ?? false));
+			$project->setClientId($clientId);
 			$project->setCreatedAt(new \DateTimeImmutable());
 			$project = $this->projectMapper->insert($project);
 			$counts['projects']++;

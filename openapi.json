@@ -44,7 +44,19 @@
 					"hourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "Optional hourly rate; when set together with showCostInSummary, the grid summary includes a computed cost column" },
 					"currencySymbol": { "type": "string", "default": "€", "description": "Shown after the cost value, e.g. \"350.00 €\"" },
 					"showCostInSummary": { "type": "boolean", "default": false },
-					"archived": { "type": "boolean", "default": false, "description": "Archived projects are hidden from the default project list but keep all their data" }
+					"archived": { "type": "boolean", "default": false, "description": "Archived projects are hidden from the default project list but keep all their data" },
+					"clientId": { "type": "integer", "nullable": true, "description": "Optional client this project belongs to, see /api/v1/clients" }
+				}
+			},
+			"Client": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"userId": { "type": "string" },
+					"name": { "type": "string" },
+					"createdAt": { "type": "string", "format": "date-time", "nullable": true },
+					"hourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "Default hourly rate used by this client's projects unless a project sets its own" },
+					"currencySymbol": { "type": "string", "default": "€", "description": "This client's projects always use this currency, regardless of any currency set on the project itself" }
 				}
 			},
 			"Module": {
@@ -157,9 +169,13 @@
 							"id": { "type": "integer" },
 							"name": { "type": "string" },
 							"hoursPerWorkingDay": { "type": "number", "format": "float" },
-							"hourlyRate": { "type": "number", "format": "float", "nullable": true },
-							"currencySymbol": { "type": "string" },
-							"showCostInSummary": { "type": "boolean" }
+							"hourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "This project's own rate override, if any. Null means it inherits the client's rate (see effectiveHourlyRate)." },
+							"currencySymbol": { "type": "string", "description": "This project's own currency, used only when it has no client" },
+							"effectiveHourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "The rate actually used for cost calculations: this project's hourlyRate, or its client's if unset" },
+							"effectiveCurrencySymbol": { "type": "string", "description": "The currency actually used: the client's currency when the project has one, otherwise this project's own currencySymbol" },
+							"showCostInSummary": { "type": "boolean" },
+							"archived": { "type": "boolean" },
+							"clientId": { "type": "integer", "nullable": true }
 						}
 					},
 					"days": { "type": "array", "items": { "type": "string", "format": "date" }, "description": "ordered list of days that have logged hours and/or leaves" },
@@ -214,9 +230,106 @@
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
 				"requestBody": {
 					"required": true,
-					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "hoursPerWorkingDay": { "type": "number", "default": 7 } } } } }
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "hoursPerWorkingDay": { "type": "number", "default": 7 }, "clientId": { "type": "integer", "nullable": true } } } } }
 				},
 				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } } }
+			}
+		},
+		"/api/v1/clients": {
+			"get": {
+				"operationId": "listClients",
+				"summary": "List all clients owned by the authenticated user",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Client" } } } } } }
+			},
+			"post": {
+				"operationId": "createClient",
+				"summary": "Create a new client",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
+				"requestBody": {
+					"required": true,
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } } } }
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Client" } } } } }
+			}
+		},
+		"/api/v1/clients/{id}": {
+			"get": {
+				"operationId": "getClient",
+				"summary": "Get a client with its aggregated summary (estimated/done/remaining hours and, where enabled, cost — summed across all its projects) and a per-project breakdown",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"client": { "$ref": "#/components/schemas/Client" },
+										"currencySymbol": { "type": "string" },
+										"costEnabled": { "type": "boolean", "description": "true if at least one of the client's projects has cost enabled" },
+										"totals": {
+											"type": "object",
+											"properties": {
+												"estimatedH": { "type": "number", "format": "float" },
+												"estimatedCost": { "type": "number", "format": "float" },
+												"doneInScopeH": { "type": "number", "format": "float" },
+												"doneInScopeCost": { "type": "number", "format": "float" },
+												"doneOthersH": { "type": "number", "format": "float" },
+												"doneOthersCost": { "type": "number", "format": "float" },
+												"doneTotalH": { "type": "number", "format": "float" },
+												"doneTotalCost": { "type": "number", "format": "float" },
+												"remainingH": { "type": "number", "format": "float" },
+												"remainingCost": { "type": "number", "format": "float" }
+											}
+										},
+										"projects": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"id": { "type": "integer" },
+													"name": { "type": "string" },
+													"archived": { "type": "boolean" },
+													"summary": { "type": "object", "description": "same shape as ProjectGrid.summary" }
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"404": { "description": "Not found" }
+				}
+			},
+			"put": {
+				"operationId": "updateClient",
+				"summary": "Rename a client, or set its default hourlyRate/currencySymbol. Its projects inherit hourlyRate unless they set their own, and always use its currencySymbol.",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": { "type": "string" },
+									"hourlyRate": { "type": "number", "nullable": true, "description": "only applied when hourlyRateProvided=true, so it can be explicitly cleared to null" },
+									"hourlyRateProvided": { "type": "boolean", "default": false },
+									"currencySymbol": { "type": "string" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Client" } } } }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteClient",
+				"summary": "Delete a client. Its projects are kept and simply unassigned (clientId set to null) — not deleted.",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
 			}
 		},
 		"/api/v1/projects/example": {
@@ -232,7 +345,7 @@
 				"operationId": "backupExport",
 				"summary": "Export every project owned by the authenticated user (modules, points, leaves, day hours, features, tests) as a single JSON backup document, e.g. before migrating to a new server",
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }],
-				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "exportVersion": { "type": "integer" }, "exportedAt": { "type": "string" }, "projects": { "type": "array", "items": { "type": "object" } } } } } } } }
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "exportVersion": { "type": "integer" }, "exportedAt": { "type": "string" }, "clients": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "hourlyRate": { "type": "number", "nullable": true }, "currencySymbol": { "type": "string" } } }, "description": "Each project below references its client by name via clientName" }, "projects": { "type": "array", "items": { "type": "object" } } } } } } } }
 			}
 		},
 		"/api/v1/backup/import": {
@@ -245,7 +358,7 @@
 					"content": { "multipart/form-data": { "schema": { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "format": "binary" } } } } }
 				},
 				"responses": {
-					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "features": { "type": "integer" }, "tests": { "type": "integer" } } } } } },
+					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "clients": { "type": "integer" }, "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "features": { "type": "integer" }, "tests": { "type": "integer" } } } } } },
 					"400": { "description": "Missing/invalid file, or malformed backup structure" }
 				}
 			}
@@ -273,7 +386,9 @@
 									"hourlyRateProvided": { "type": "boolean", "default": false },
 									"currencySymbol": { "type": "string" },
 									"showCostInSummary": { "type": "boolean" },
-									"archived": { "type": "boolean", "description": "Set to true to archive the project (hides it from the default project list without deleting anything), or false to restore it" }
+									"archived": { "type": "boolean", "description": "Set to true to archive the project (hides it from the default project list without deleting anything), or false to restore it" },
+									"clientId": { "type": "integer", "nullable": true, "description": "only applied when clientIdProvided=true, so it can be explicitly cleared to null (unassigning the client)" },
+									"clientIdProvided": { "type": "boolean", "default": false }
 								}
 							}
 						}

@@ -40,11 +40,12 @@ class ProjectService {
 		return $this->projectMapper->find($id, $userId);
 	}
 
-	public function create(string $userId, string $name, float $hoursPerWorkingDay = 7.0): Project {
+	public function create(string $userId, string $name, float $hoursPerWorkingDay = 7.0, ?int $clientId = null): Project {
 		$project = new Project();
 		$project->setUserId($userId);
 		$project->setName($name);
 		$project->setHoursPerWorkingDay($hoursPerWorkingDay > 0 ? $hoursPerWorkingDay : 7.0);
+		$project->setClientId($clientId);
 		$project->setCreatedAt(new \DateTimeImmutable());
 		return $this->projectMapper->insert($project);
 	}
@@ -63,6 +64,8 @@ class ProjectService {
 		?string $currencySymbol = null,
 		?bool $showCostInSummary = null,
 		?bool $archived = null,
+		?int $clientId = null,
+		bool $clientIdProvided = false,
 	): Project {
 		$project = $this->find($id, $userId);
 		if ($name !== null) {
@@ -82,6 +85,9 @@ class ProjectService {
 		}
 		if ($archived !== null) {
 			$project->setArchived($archived);
+		}
+		if ($clientIdProvided) {
+			$project->setClientId($clientId);
 		}
 		return $this->projectMapper->update($project);
 	}

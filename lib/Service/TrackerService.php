@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\ProjectManager\Service;
 
+use OCA\ProjectManager\Db\ClientMapper;
 use OCA\ProjectManager\Db\DayHours;
 use OCA\ProjectManager\Db\DayHoursMapper;
 use OCA\ProjectManager\Db\Leaf;
@@ -23,6 +24,7 @@ use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 class TrackerService {
 	public function __construct(
 		private ProjectMapper $projectMapper,
+		private ClientMapper $clientMapper,
 		private ModuleMapper $moduleMapper,
 		private PointMapper $pointMapper,
 		private LeafMapper $leafMapper,
@@ -315,19 +317,36 @@ class TrackerService {
 		$remainingInScope = $estimatedInScope - $doneInScope;
 		$hpd = $project->getHoursPerWorkingDay();
 
-		$hourlyRate = $project->getHourlyRate();
-		$costEnabled = $project->getShowCostInSummary() && $hourlyRate !== null;
-		$cost = static fn (float $hours): ?float => $costEnabled ? round($hours * $hourlyRate, 2) : null;
+		$client = null;
+		if ($project->getClientId() !== null) {
+			try {
+				$client = $this->clientMapper->find($project->getClientId(), $userId);
+			} catch (DoesNotExistException) {
+				$client = null;
+			}
+		}
+
+		// A project's own hourly rate always wins; otherwise it falls back to its
+		// client's default rate. Currency, however, always follows the client
+		// (when one is set) so that a client's projects can be safely summed.
+		$effectiveHourlyRate = $project->getHourlyRate() ?? $client?->getHourlyRate();
+		$effectiveCurrencySymbol = $client?->getCurrencySymbol() ?? $project->getCurrencySymbol();
+
+		$costEnabled = $project->getShowCostInSummary() && $effectiveHourlyRate !== null;
+		$cost = static fn (float $hours): ?float => $costEnabled ? round($hours * $effectiveHourlyRate, 2) : null;
 
 		return [
 			'project' => [
 				'id' => $project->getId(),
 				'name' => $project->getName(),
 				'hoursPerWorkingDay' => $hpd,
-				'hourlyRate' => $hourlyRate,
+				'hourlyRate' => $project->getHourlyRate(),
 				'currencySymbol' => $project->getCurrencySymbol(),
+				'effectiveHourlyRate' => $effectiveHourlyRate,
+				'effectiveCurrencySymbol' => $effectiveCurrencySymbol,
 				'showCostInSummary' => $project->getShowCostInSummary(),
 				'archived' => $project->getArchived(),
+				'clientId' => $project->getClientId(),
 			],
 			'days' => $days,
 			'hoursByDay' => $hoursByDay,
@@ -350,7 +369,7 @@ class TrackerService {
 				'remainingDays' => round($this->calc->hoursToDays($remainingInScope, $hpd), 2),
 				'remainingCost' => $cost($remainingInScope),
 				'costEnabled' => $costEnabled,
-				'currencySymbol' => $project->getCurrencySymbol(),
+				'currencySymbol' => $effectiveCurrencySymbol,
 			],
 		];
 	}

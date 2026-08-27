@@ -124,6 +124,19 @@ OC.L10N.register(
     "Archive project": "Archiver le projet",
     "Unarchive project": "Désarchiver le projet",
     "Progress over time": "Progression dans le temps",
-    "Day-hours entries": "Entrées d'heures/jour"
+    "Day-hours entries": "Entrées d'heures/jour",
+    "Client": "Client",
+    "No client": "Aucun client",
+    "New client": "Nouveau client",
+    "+ Client": "+ Client",
+    "Delete client": "Supprimer le client",
+    "Delete this client? Its projects are kept, just unassigned.": "Supprimer ce client ? Ses projets sont conservés, ils sont simplement désassociés.",
+    "Client settings": "Paramètres du client",
+    "Leave empty to use the client's rate ({rate})": "Laisser vide pour utiliser le taux du client ({rate})",
+    "This project uses its client's currency: {symbol}": "Ce projet utilise la devise de son client : {symbol}",
+    "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "Les projets de ce client utilisent ce taux horaire sauf s'ils définissent le leur, et utilisent toujours la devise de ce client.",
+    "Clients (optional)": "Clients (facultatif)",
+    "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Regroupez des projets sous un Client à l'aide du bouton « + Client » dans la barre latérale. Un client peut avoir son propre taux horaire et sa propre devise : ses projets utilisent cette devise, et utilisent son taux sauf s'ils définissent le leur — utile quand le même client a des projets facturés à des taux différents.",
+    "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Cliquez sur le nom d'un client pour voir un résumé combinant les heures Estimées, Réalisées et Restantes (et le coût) de tous ses projets."
 },
 "nplurals=2; plural=(n > 1);");

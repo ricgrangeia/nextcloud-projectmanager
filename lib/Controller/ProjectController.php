@@ -40,8 +40,8 @@ class ProjectController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/api/projects')]
-	public function create(string $name, float $hoursPerWorkingDay = 7.0): DataResponse {
-		return new DataResponse($this->projectService->create($this->getUserId(), $name, $hoursPerWorkingDay), Http::STATUS_CREATED);
+	public function create(string $name, float $hoursPerWorkingDay = 7.0, ?int $clientId = null): DataResponse {
+		return new DataResponse($this->projectService->create($this->getUserId(), $name, $hoursPerWorkingDay, $clientId), Http::STATUS_CREATED);
 	}
 
 	#[NoAdminRequired]
@@ -71,9 +71,11 @@ class ProjectController extends Controller {
 		?string $currencySymbol = null,
 		?bool $showCostInSummary = null,
 		?bool $archived = null,
+		?int $clientId = null,
+		bool $clientIdProvided = false,
 	): DataResponse {
 		try {
-			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived));
+			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived, $clientId, $clientIdProvided));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}

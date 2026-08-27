@@ -124,6 +124,19 @@ OC.L10N.register(
     "Archive project": "Archivar proyecto",
     "Unarchive project": "Desarchivar proyecto",
     "Progress over time": "Progreso a lo largo del tiempo",
-    "Day-hours entries": "Entradas de horas/día"
+    "Day-hours entries": "Entradas de horas/día",
+    "Client": "Cliente",
+    "No client": "Sin cliente",
+    "New client": "Nuevo cliente",
+    "+ Client": "+ Cliente",
+    "Delete client": "Eliminar cliente",
+    "Delete this client? Its projects are kept, just unassigned.": "¿Eliminar este cliente? Sus proyectos se conservan, solo quedan sin asignar.",
+    "Client settings": "Ajustes del cliente",
+    "Leave empty to use the client's rate ({rate})": "Deje vacío para usar la tarifa del cliente ({rate})",
+    "This project uses its client's currency: {symbol}": "Este proyecto usa la moneda de su cliente: {symbol}",
+    "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.": "Los proyectos de este cliente usan esta tarifa por hora a menos que definan la suya propia, y siempre usan la moneda de este cliente.",
+    "Clients (optional)": "Clientes (opcional)",
+    "Group projects under a Client using the \"+ Client\" button in the sidebar. A client can have its own hourly rate and currency: its projects use that currency, and use its rate unless they set their own — useful when the same client has projects billed at different rates.": "Agrupe proyectos bajo un Cliente usando el botón «+ Client» en la barra lateral. Un cliente puede tener su propia tarifa por hora y moneda: sus proyectos usan esa moneda, y usan su tarifa a menos que definan la suya propia — útil cuando el mismo cliente tiene proyectos facturados a tarifas diferentes.",
+    "Click a client's name to see a summary combining Estimated, Done and Remaining hours (and cost) across all of its projects.": "Haga clic en el nombre de un cliente para ver un resumen que combina las horas Estimado, Hecho y Restante (y el coste) de todos sus proyectos."
 },
 "nplurals=2; plural=(n != 1);");

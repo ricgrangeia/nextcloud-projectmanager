@@ -5,11 +5,13 @@ import ProjectView from '../views/ProjectView.vue'
 import GridView from '../views/GridView.vue'
 import FeaturesView from '../views/FeaturesView.vue'
 import TestsView from '../views/TestsView.vue'
+import ClientView from '../views/ClientView.vue'
 
 export default createRouter({
 	history: createWebHashHistory(),
 	routes: [
 		{ path: '/', name: 'projects', component: ProjectsListView },
+		{ path: '/clients/:id', name: 'client', component: ClientView, props: true },
 		{
 			path: '/projects/:id',
 			component: ProjectView,

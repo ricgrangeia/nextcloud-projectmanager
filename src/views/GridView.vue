@@ -10,7 +10,7 @@ import StatusPill from '../components/StatusPill.vue'
 import EditableCell from '../components/EditableCell.vue'
 import BurndownChart from '../components/BurndownChart.vue'
 import { statusLabel } from '../utils/statusLabels.js'
-import { loadProjects } from '../store/index.js'
+import { state, loadProjects } from '../store/index.js'
 
 const props = defineProps({
 	id: { type: [String, Number], required: true },
@@ -72,8 +72,23 @@ function openSettingsForm() {
 		currencySymbol: grid.value.project.currencySymbol,
 		showCostInSummary: grid.value.project.showCostInSummary,
 		archived: grid.value.project.archived,
+		clientId: grid.value.project.clientId ?? '',
 	}
 }
+
+const selectedClientForSettings = computed(() => {
+	if (!settingsForm.value || settingsForm.value.clientId === '') {
+		return null
+	}
+	return state.clients.find((c) => c.id === Number(settingsForm.value.clientId)) ?? null
+})
+
+const hourlyRatePlaceholder = computed(() => {
+	if (selectedClientForSettings.value?.hourlyRate) {
+		return t('projectmanager', "Leave empty to use the client's rate ({rate})", { rate: selectedClientForSettings.value.hourlyRate })
+	}
+	return t('projectmanager', 'Leave empty to disable')
+})
 
 function cancelSettingsForm() {
 	settingsForm.value = null
@@ -95,6 +110,8 @@ async function submitSettingsForm() {
 		hourlyRateProvided: true,
 		currencySymbol: settingsForm.value.currencySymbol || '€',
 		showCostInSummary: settingsForm.value.showCostInSummary,
+		clientId: settingsForm.value.clientId === '' ? null : Number(settingsForm.value.clientId),
+		clientIdProvided: true,
 	})
 	settingsForm.value = null
 	await loadProjects()
@@ -365,9 +382,9 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						<th class="col-point">{{ t('projectmanager', 'Point') }}</th>
 						<th class="col-module">{{ t('projectmanager', 'Module') }}</th>
 						<th class="col-desc">{{ t('projectmanager', 'Description') }}</th>
-						<th class="col-num">{{ t('projectmanager', 'Est.') }}</th>
-						<th class="col-num">{{ t('projectmanager', 'Done') }}</th>
-						<th class="col-num">{{ t('projectmanager', 'Rem.') }}</th>
+						<th class="col-num col-num-1">{{ t('projectmanager', 'Est.') }}</th>
+						<th class="col-num col-num-2">{{ t('projectmanager', 'Done') }}</th>
+						<th class="col-num col-num-3">{{ t('projectmanager', 'Rem.') }}</th>
 						<th class="col-status">{{ t('projectmanager', 'Status') }}</th>
 						<th v-for="day in dayHeaders" :key="day" class="col-day day-header">
 							{{ day }}
@@ -382,8 +399,13 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						</th>
 					</tr>
 					<tr class="hours-row">
-						<td colspan="6"></td>
-						<td>{{ t('projectmanager', 'Hours/day') }}</td>
+						<td class="col-point"></td>
+						<td class="col-module"></td>
+						<td class="col-desc"></td>
+						<td class="col-num col-num-1"></td>
+						<td class="col-num col-num-2"></td>
+						<td class="col-num col-num-3"></td>
+						<td class="col-status">{{ t('projectmanager', 'Hours/day') }}</td>
 						<td v-for="day in dayHeaders" :key="day" class="hours-cell">
 							<input
 								type="number"
@@ -399,18 +421,18 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 				<tbody>
 					<template v-for="module in grid.modules" :key="module.id">
 						<tr class="module-row">
-							<td></td>
-							<td>
+							<td class="col-point"></td>
+							<td class="col-module">
 								<EditableCell :model-value="module.code" @save="v => updateModuleField(module, 'code', v)" />
 							</td>
-							<td>
+							<td class="col-desc">
 								<EditableCell :model-value="module.name" @save="v => updateModuleField(module, 'name', v)" />
 								<span v-if="!module.inEstimate" class="others-badge">{{ t('projectmanager', 'OTHERS') }}</span>
 							</td>
-							<td class="col-num">{{ fmtH(module.estimateH) }}</td>
-							<td class="col-num">{{ fmtH(module.doneH) }}</td>
-							<td class="col-num">{{ fmtH(module.remainingH) }}</td>
-							<td class="row-actions">
+							<td class="col-num col-num-1">{{ fmtH(module.estimateH) }}</td>
+							<td class="col-num col-num-2">{{ fmtH(module.doneH) }}</td>
+							<td class="col-num col-num-3">{{ fmtH(module.remainingH) }}</td>
+							<td class="row-actions col-status">
 								<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Edit')" :title="t('projectmanager', 'Edit')" @click="openEditModuleForm(module)">
 									<Pencil :size="16" />
 								</button>
@@ -423,14 +445,14 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						</tr>
 						<template v-for="point in module.points" :key="point.id">
 							<tr class="point-row">
-								<td>
+								<td class="col-point">
 									<EditableCell :model-value="point.code" @save="v => updatePointField(point, 'code', v)" />
 								</td>
-								<td></td>
+								<td class="col-module"></td>
 								<td class="col-desc">
 									<EditableCell :model-value="point.description" @save="v => updatePointField(point, 'description', v)" />
 								</td>
-								<td class="col-num">
+								<td class="col-num col-num-1">
 									<input
 										type="number"
 										class="estimate-input"
@@ -438,9 +460,9 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 										placeholder="—"
 										@change="updatePointEstimate(point, $event.target.value)">
 								</td>
-								<td class="col-num">{{ fmtH(point.doneH) }}</td>
-								<td class="col-num">{{ fmtH(point.remainingH) }}</td>
-								<td>
+								<td class="col-num col-num-2">{{ fmtH(point.doneH) }}</td>
+								<td class="col-num col-num-3">{{ fmtH(point.remainingH) }}</td>
+								<td class="col-status">
 									<select :value="point.status" @change="updatePointStatus(point, $event.target.value)">
 										<option v-for="s in POINT_STATUSES" :key="s" :value="s">{{ statusLabel(s) }}</option>
 									</select>
@@ -458,16 +480,16 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 								</td>
 							</tr>
 							<tr v-for="leaf in point.leaves" :key="leaf.id" class="leaf-row">
-								<td class="leaf-lead-cell"></td>
-								<td class="leaf-lead-cell"></td>
-								<td class="leaf-desc">
+								<td class="leaf-lead-cell col-point"></td>
+								<td class="leaf-lead-cell col-module"></td>
+								<td class="leaf-desc col-desc">
 									<span class="leaf-arrow">↳</span>
 									<EditableCell :model-value="leaf.description" @save="v => updateLeafField(leaf, 'description', v)" />
 								</td>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
+								<td class="col-num col-num-1"></td>
+								<td class="col-num col-num-2"></td>
+								<td class="col-num col-num-3"></td>
+								<td class="col-status"></td>
 								<td v-for="day in dayHeaders" :key="day" class="col-day">
 									<span v-if="day === leaf.workDate">X</span>
 								</td>
@@ -494,8 +516,13 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						</td>
 					</tr>
 					<tr class="total-row">
-						<td colspan="6"></td>
-						<td>{{ t('projectmanager', 'TOTAL/DAY') }}</td>
+						<td class="col-point"></td>
+						<td class="col-module"></td>
+						<td class="col-desc"></td>
+						<td class="col-num col-num-1"></td>
+						<td class="col-num col-num-2"></td>
+						<td class="col-num col-num-3"></td>
+						<td class="col-status">{{ t('projectmanager', 'TOTAL/DAY') }}</td>
 						<td v-for="day in dayHeaders" :key="day" class="col-day">{{ fmtPct(grid.totalPctByDay[day]) }}</td>
 						<td></td>
 					</tr>
@@ -644,14 +671,22 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 				<input v-model="settingsForm.hoursPerWorkingDay" type="number" step="0.5" min="0">
 			</label>
 			<label class="dialog-field">
-				<span class="dialog-label">{{ t('projectmanager', 'Hourly rate') }}</span>
-				<input v-model="settingsForm.hourlyRate" type="number" step="0.01" :placeholder="t('projectmanager', 'Leave empty to disable')">
+				<span class="dialog-label">{{ t('projectmanager', 'Client') }}</span>
+				<select v-model="settingsForm.clientId">
+					<option value="">{{ t('projectmanager', 'No client') }}</option>
+					<option v-for="client in state.clients" :key="client.id" :value="client.id">{{ client.name }}</option>
+				</select>
 			</label>
 			<label class="dialog-field">
+				<span class="dialog-label">{{ t('projectmanager', 'Hourly rate') }}</span>
+				<input v-model="settingsForm.hourlyRate" type="number" step="0.01" :placeholder="hourlyRatePlaceholder">
+			</label>
+			<label v-if="!selectedClientForSettings" class="dialog-field">
 				<span class="dialog-label">{{ t('projectmanager', 'Currency symbol') }}</span>
 				<input v-model="settingsForm.currencySymbol" type="text" maxlength="8">
 			</label>
-			<p class="dialog-hint">{{ t('projectmanager', 'The currency symbol is shown after the value, e.g. "350.00 €".') }}</p>
+			<p v-if="!selectedClientForSettings" class="dialog-hint">{{ t('projectmanager', 'The currency symbol is shown after the value, e.g. "350.00 €".') }}</p>
+			<p v-else class="dialog-hint">{{ t('projectmanager', 'This project uses its client\'s currency: {symbol}', { symbol: selectedClientForSettings.currencySymbol }) }}</p>
 			<label class="dialog-field dialog-field-checkbox">
 				<input v-model="settingsForm.showCostInSummary" type="checkbox">
 				<span>{{ t('projectmanager', 'Show cost in the summary') }}</span>
@@ -692,20 +727,21 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	border-collapse: collapse;
 	font-size: 13px;
 	min-width: 100%;
+	table-layout: fixed;
 }
 
 .tracker-table th,
 .tracker-table td {
+	box-sizing: border-box;
 	border: 1px solid var(--color-border);
 	padding: 4px 8px;
 	white-space: nowrap;
 }
 
-.col-desc {
-	white-space: nowrap;
-	max-width: 360px;
-	overflow: hidden;
-	text-overflow: ellipsis;
+.tracker-table td.col-desc,
+.tracker-table th.col-desc {
+	white-space: normal;
+	word-break: break-word;
 }
 
 .col-num {
@@ -720,9 +756,15 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	z-index: 2;
 }
 
+/* Everything before the day columns (Point/Module/Description/Est./Done/Rem./
+   Status) stays frozen on horizontal scroll, so a row stays identifiable no
+   matter how far right you've scrolled through the days. Widths are fixed
+   (table-layout: fixed) so these left offsets line up reliably. */
 .col-point,
 .col-module,
-.col-desc {
+.col-desc,
+.col-num,
+.col-status {
 	position: sticky;
 	background-color: inherit;
 	z-index: 1;
@@ -730,14 +772,79 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 
 .col-point {
 	left: 0;
+	width: 60px;
+	min-width: 60px;
+	max-width: 60px;
 }
 
 .col-module {
 	left: 60px;
+	width: 60px;
+	min-width: 60px;
+	max-width: 60px;
 }
 
 .col-desc {
 	left: 120px;
+	width: 640px;
+	min-width: 640px;
+	max-width: 640px;
+}
+
+.col-num {
+	width: 70px;
+	min-width: 70px;
+	max-width: 70px;
+}
+
+.col-num-1 {
+	left: 760px;
+}
+
+.col-num-2 {
+	left: 830px;
+}
+
+.col-num-3 {
+	left: 900px;
+}
+
+.col-status {
+	left: 970px;
+	width: 190px;
+	min-width: 190px;
+	max-width: 190px;
+}
+
+.col-day {
+	width: 92px;
+	min-width: 92px;
+	max-width: 92px;
+}
+
+.col-add-day {
+	width: 220px;
+}
+
+/* Header cells are sticky both to the top (above) and, for the frozen
+   columns, to the left — they need to stay above the frozen body cells
+   while scrolling in either direction. */
+.header-row th.col-point,
+.header-row th.col-module,
+.header-row th.col-desc,
+.header-row th.col-num,
+.header-row th.col-status {
+	z-index: 3;
+}
+
+
+/* "+ Point" spans columns 1-7 in one cell; pinning its left edge keeps the
+   whole frozen-width block (and the button) in view while scrolling. */
+.add-point-row td:first-child {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background-color: inherit;
 }
 
 /* Module group rows: a subtly different surface + accent stripe, instead of
@@ -977,6 +1084,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 .dialog-field input[type="text"],
 .dialog-field input[type="number"],
 .dialog-field input[type="date"],
+.dialog-field select,
 .dialog-field textarea {
 	width: 100%;
 	box-sizing: border-box;
@@ -989,6 +1097,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 }
 
 .dialog-field input:focus,
+.dialog-field select:focus,
 .dialog-field textarea:focus {
 	border-color: var(--color-primary-element);
 	outline: none;

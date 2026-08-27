@@ -8,7 +8,7 @@
 Points, log day-to-day work as Leaves, and let the app compute done/remaining hours
 automatically from a largest-remainder percentage split per point and day. Includes
 Features (proposal vs. status) and Tests (validation log) views, plus .xlsx export.]]></description>
-	<version>1.0.16</version>
+	<version>1.0.25</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="ricardo@grangeia.pt">Ricardo</author>
 	<author mail="ricardograngeia@gmail.com">Ricardo</author>

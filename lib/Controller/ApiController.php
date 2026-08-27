@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\ProjectManager\Controller;
 
 use OCA\ProjectManager\Service\BackupService;
+use OCA\ProjectManager\Service\ClientService;
 use OCA\ProjectManager\Service\ExampleProjectService;
 use OCA\ProjectManager\Service\FeatureService;
 use OCA\ProjectManager\Service\ProjectService;
@@ -40,6 +41,7 @@ class ApiController extends OCSController {
 		private TestService $testService,
 		private ExampleProjectService $exampleProjectService,
 		private BackupService $backupService,
+		private ClientService $clientService,
 		private IUserSession $userSession,
 	) {
 		parent::__construct($appName, $request);
@@ -72,11 +74,16 @@ class ApiController extends OCSController {
 			'fullSpecNote' => 'OpenAPI 3.0 document with every endpoint, parameter and response shape. Read this before guessing endpoint names.',
 			'quickReference' => [
 				['method' => 'GET', 'path' => '/api/v1/projects', 'summary' => 'List your projects (archived ones excluded unless ?includeArchived=true)'],
-				['method' => 'POST', 'path' => '/api/v1/projects', 'summary' => 'Create a project (name, hoursPerWorkingDay)'],
+				['method' => 'POST', 'path' => '/api/v1/projects', 'summary' => 'Create a project (name, hoursPerWorkingDay, clientId optional)'],
 				['method' => 'POST', 'path' => '/api/v1/projects/example', 'summary' => 'Seed a fully worked example project'],
 				['method' => 'GET', 'path' => '/api/v1/projects/{id}', 'summary' => 'Get the fully computed grid: modules, points, leaves, done/remaining hours, summary'],
-				['method' => 'PUT', 'path' => '/api/v1/projects/{id}', 'summary' => 'Rename / change hoursPerWorkingDay, hourlyRate, currencySymbol, showCostInSummary, archived (true to archive, false to restore)'],
+				['method' => 'PUT', 'path' => '/api/v1/projects/{id}', 'summary' => 'Rename / change hoursPerWorkingDay, hourlyRate, currencySymbol, showCostInSummary, archived (true to archive, false to restore), clientId (pass clientIdProvided=true to change/clear it)'],
 				['method' => 'DELETE', 'path' => '/api/v1/projects/{id}', 'summary' => 'Delete a project and everything under it'],
+				['method' => 'GET', 'path' => '/api/v1/clients', 'summary' => 'List your clients'],
+				['method' => 'POST', 'path' => '/api/v1/clients', 'summary' => 'Create a client (name)'],
+				['method' => 'GET', 'path' => '/api/v1/clients/{id}', 'summary' => 'Get a client with its aggregated summary (estimated/done/remaining hours and cost, summed across all its projects) and a per-project breakdown'],
+				['method' => 'PUT', 'path' => '/api/v1/clients/{id}', 'summary' => 'Rename a client, or set its default hourlyRate (pass hourlyRateProvided=true to change/clear it) and currencySymbol — projects under it inherit these unless they set their own hourlyRate, and always use the client\'s currencySymbol'],
+				['method' => 'DELETE', 'path' => '/api/v1/clients/{id}', 'summary' => 'Delete a client (its projects are kept, unassigned)'],
 				['method' => 'POST', 'path' => '/api/v1/projects/{projectId}/modules', 'summary' => 'Create a module (code, name, inEstimate)'],
 				['method' => 'PUT', 'path' => '/api/v1/modules/{id}', 'summary' => 'Update a module'],
 				['method' => 'DELETE', 'path' => '/api/v1/modules/{id}', 'summary' => 'Delete a module and its points/leaves'],
@@ -142,8 +149,8 @@ class ApiController extends OCSController {
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/projects')]
-	public function createProject(string $name, float $hoursPerWorkingDay = 7.0): DataResponse {
-		return new DataResponse($this->projectService->create($this->getUserId(), $name, $hoursPerWorkingDay), Http::STATUS_CREATED);
+	public function createProject(string $name, float $hoursPerWorkingDay = 7.0, ?int $clientId = null): DataResponse {
+		return new DataResponse($this->projectService->create($this->getUserId(), $name, $hoursPerWorkingDay, $clientId), Http::STATUS_CREATED);
 	}
 
 	#[NoAdminRequired]
@@ -173,9 +180,11 @@ class ApiController extends OCSController {
 		?string $currencySymbol = null,
 		?bool $showCostInSummary = null,
 		?bool $archived = null,
+		?int $clientId = null,
+		bool $clientIdProvided = false,
 	): DataResponse {
 		try {
-			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived));
+			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived, $clientId, $clientIdProvided));
 		} catch (DoesNotExistException) {
 			return $this->notFound();
 		}
@@ -186,6 +195,57 @@ class ApiController extends OCSController {
 	public function deleteProject(int $id): DataResponse {
 		try {
 			$this->projectService->delete($id, $this->getUserId());
+			return new DataResponse([]);
+		} catch (DoesNotExistException) {
+			return $this->notFound();
+		}
+	}
+
+	// --- Clients ----------------------------------------------------------
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/clients')]
+	public function listClients(): DataResponse {
+		return new DataResponse($this->clientService->findAll($this->getUserId()));
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/clients')]
+	public function createClient(string $name): DataResponse {
+		return new DataResponse($this->clientService->create($this->getUserId(), $name), Http::STATUS_CREATED);
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/clients/{id}', requirements: ['id' => '\d+'])]
+	public function getClient(int $id): DataResponse {
+		try {
+			return new DataResponse($this->clientService->buildSummary($id, $this->getUserId()));
+		} catch (DoesNotExistException) {
+			return $this->notFound();
+		}
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/clients/{id}', requirements: ['id' => '\d+'])]
+	public function updateClient(
+		int $id,
+		?string $name = null,
+		?float $hourlyRate = null,
+		bool $hourlyRateProvided = false,
+		?string $currencySymbol = null,
+	): DataResponse {
+		try {
+			return new DataResponse($this->clientService->update($id, $this->getUserId(), $name, $hourlyRate, $hourlyRateProvided, $currencySymbol));
+		} catch (DoesNotExistException) {
+			return $this->notFound();
+		}
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'DELETE', url: '/api/v1/clients/{id}', requirements: ['id' => '\d+'])]
+	public function deleteClient(int $id): DataResponse {
+		try {
+			$this->clientService->delete($id, $this->getUserId());
 			return new DataResponse([]);
 		} catch (DoesNotExistException) {
 			return $this->notFound();
