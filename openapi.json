@@ -200,6 +200,9 @@
 							"remainingH": { "type": "number", "format": "float" },
 							"remainingDays": { "type": "number", "format": "float" },
 							"remainingCost": { "type": "number", "format": "float", "nullable": true },
+							"remainingTotalH": { "type": "number", "format": "float", "description": "Remaining hours including OTHERS points that have their own estimate, not just in-scope" },
+							"remainingTotalDays": { "type": "number", "format": "float" },
+							"remainingTotalCost": { "type": "number", "format": "float", "nullable": true },
 							"costEnabled": { "type": "boolean" },
 							"currencySymbol": { "type": "string" }
 						}
@@ -281,7 +284,9 @@
 												"doneTotalH": { "type": "number", "format": "float" },
 												"doneTotalCost": { "type": "number", "format": "float" },
 												"remainingH": { "type": "number", "format": "float" },
-												"remainingCost": { "type": "number", "format": "float" }
+												"remainingCost": { "type": "number", "format": "float" },
+												"remainingTotalH": { "type": "number", "format": "float" },
+												"remainingTotalCost": { "type": "number", "format": "float" }
 											}
 										},
 										"projects": {

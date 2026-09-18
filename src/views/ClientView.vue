@@ -65,6 +65,11 @@ function openProject(project) {
 						<td>{{ fmtH(data.totals.remainingH) }}</td>
 						<td v-if="data.costEnabled">{{ fmtCost(data.totals.remainingCost, data.currencySymbol) }}</td>
 					</tr>
+					<tr>
+						<td>{{ t('projectmanager', 'Remaining (total)') }}</td>
+						<td>{{ fmtH(data.totals.remainingTotalH) }}</td>
+						<td v-if="data.costEnabled">{{ fmtCost(data.totals.remainingTotalCost, data.currencySymbol) }}</td>
+					</tr>
 				</tbody>
 			</table>
 		</div>

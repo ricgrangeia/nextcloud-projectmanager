@@ -4,8 +4,10 @@ import { ref, computed } from 'vue'
 const props = defineProps({
 	days: { type: Array, required: true },
 	doneSeries: { type: Array, required: true },
+	doneTotalSeries: { type: Array, default: () => [] },
 	estimatedH: { type: Number, required: true },
 	doneLabel: { type: String, required: true },
+	doneTotalLabel: { type: String, default: '' },
 	estimatedLabel: { type: String, required: true },
 })
 
@@ -19,7 +21,9 @@ const PAD_BOTTOM = 20
 const wrapperRef = ref(null)
 const hovered = ref(null)
 
-const maxY = computed(() => Math.max(props.estimatedH, ...props.doneSeries, 1))
+const hasDoneTotal = computed(() => props.doneTotalSeries.length === props.days.length && props.days.length > 0)
+
+const maxY = computed(() => Math.max(props.estimatedH, ...props.doneSeries, ...(hasDoneTotal.value ? props.doneTotalSeries : []), 1))
 
 function x(i) {
 	const n = props.days.length
@@ -35,6 +39,7 @@ function y(value) {
 }
 
 const donePoints = computed(() => props.doneSeries.map((v, i) => `${x(i)},${y(v)}`).join(' '))
+const doneTotalPoints = computed(() => (hasDoneTotal.value ? props.doneTotalSeries.map((v, i) => `${x(i)},${y(v)}`).join(' ') : ''))
 const estimatedY = computed(() => y(props.estimatedH))
 const firstDay = computed(() => props.days[0])
 const lastDay = computed(() => props.days[props.days.length - 1])
@@ -61,7 +66,12 @@ function onPointLeave() {
 
 			<line :x1="PAD_LEFT" :y1="estimatedY" :x2="WIDTH - PAD_RIGHT" :y2="estimatedY" class="estimated-line" />
 
+			<polyline v-if="hasDoneTotal" :points="doneTotalPoints" fill="none" class="done-total-line" />
 			<polyline :points="donePoints" fill="none" class="done-line" />
+
+			<template v-if="hasDoneTotal">
+				<circle v-for="(v, i) in doneTotalSeries" :key="'total-dot-' + i" :cx="x(i)" :cy="y(v)" r="2.5" class="done-total-dot" />
+			</template>
 			<circle v-for="(v, i) in doneSeries" :key="'dot-' + i" :cx="x(i)" :cy="y(v)" r="2.5" class="done-dot" :class="{ 'done-dot-active': hovered && hovered.index === i }" />
 			<circle
 				v-for="(v, i) in doneSeries"
@@ -80,10 +90,12 @@ function onPointLeave() {
 		</svg>
 		<div v-if="hovered" class="burndown-tooltip" :style="{ left: hovered.x + 'px', top: hovered.y + 'px' }">
 			<strong>{{ days[hovered.index] }}</strong>
-			<span>{{ doneSeries[hovered.index].toFixed(2) }}h</span>
+			<span>{{ doneLabel }}: {{ doneSeries[hovered.index].toFixed(2) }}h</span>
+			<span v-if="hasDoneTotal">{{ doneTotalLabel }}: {{ doneTotalSeries[hovered.index].toFixed(2) }}h</span>
 		</div>
 		<div class="burndown-legend">
 			<span class="legend-item"><span class="legend-swatch legend-swatch-done" /> {{ doneLabel }}</span>
+			<span v-if="hasDoneTotal" class="legend-item"><span class="legend-swatch legend-swatch-done-total" /> {{ doneTotalLabel }}</span>
 			<span class="legend-item"><span class="legend-swatch legend-swatch-estimated" /> {{ estimatedLabel }}</span>
 		</div>
 	</div>
@@ -117,8 +129,18 @@ function onPointLeave() {
 	stroke-width: 2;
 }
 
+.done-total-line {
+	stroke: var(--color-success, seagreen);
+	stroke-width: 2;
+}
+
 .done-dot {
 	fill: var(--color-primary-element);
+	pointer-events: none;
+}
+
+.done-total-dot {
+	fill: var(--color-success, seagreen);
 	pointer-events: none;
 }
 
@@ -185,6 +207,10 @@ function onPointLeave() {
 
 .legend-swatch-done {
 	background: var(--color-primary-element);
+}
+
+.legend-swatch-done-total {
+	background: var(--color-success, seagreen);
 }
 
 .legend-swatch-estimated {

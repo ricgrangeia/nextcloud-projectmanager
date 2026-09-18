@@ -45,6 +45,7 @@ OC.L10N.register(
     "Done (OTHERS)": "Erledigt (SONSTIGE)",
     "Done (total)": "Erledigt (gesamt)",
     "Remaining (in scope)": "Verbleibend (im Umfang)",
+    "Remaining (total)": "Verbleibend (gesamt)",
     "+ Feature": "+ Funktion",
     "Section (e.g. ADMISSIONS)": "Bereich (z. B. AUFNAHMEN)",
     "Feature name": "Funktionsname",

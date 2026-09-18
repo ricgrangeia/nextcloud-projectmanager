@@ -45,6 +45,7 @@ OC.L10N.register(
     "Done (OTHERS)": "Completato (ALTRI)",
     "Done (total)": "Completato (totale)",
     "Remaining (in scope)": "Rimanente (nell'ambito)",
+    "Remaining (total)": "Rimanente (totale)",
     "+ Feature": "+ Funzionalità",
     "Section (e.g. ADMISSIONS)": "Sezione (es.: AMMISSIONI)",
     "Feature name": "Nome della funzionalità",

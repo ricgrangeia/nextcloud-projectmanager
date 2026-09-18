@@ -248,6 +248,7 @@ class TrackerService {
 
 		$moduleDtos = [];
 		$estimatedInScope = 0.0;
+		$estimatedOthers = 0.0;
 		$doneInScope = 0.0;
 		$doneOthers = 0.0;
 
@@ -295,6 +296,9 @@ class TrackerService {
 				$estimatedInScope += $moduleEstimate;
 				$doneInScope += $moduleDoneH;
 			} else {
+				if ($hasEstimate) {
+					$estimatedOthers += $moduleEstimate;
+				}
 				$doneOthers += $moduleDoneH;
 			}
 
@@ -315,6 +319,7 @@ class TrackerService {
 		$totalPctByDay = $this->calc->computeTotalPercentagePerDay($days, $pctByDay);
 		$doneTotal = $doneInScope + $doneOthers;
 		$remainingInScope = $estimatedInScope - $doneInScope;
+		$remainingTotal = ($estimatedInScope + $estimatedOthers) - $doneTotal;
 		$hpd = $project->getHoursPerWorkingDay();
 
 		$client = null;
@@ -368,6 +373,9 @@ class TrackerService {
 				'remainingH' => round($remainingInScope, 2),
 				'remainingDays' => round($this->calc->hoursToDays($remainingInScope, $hpd), 2),
 				'remainingCost' => $cost($remainingInScope),
+				'remainingTotalH' => round($remainingTotal, 2),
+				'remainingTotalDays' => round($this->calc->hoursToDays($remainingTotal, $hpd), 2),
+				'remainingTotalCost' => $cost($remainingTotal),
 				'costEnabled' => $costEnabled,
 				'currencySymbol' => $effectiveCurrencySymbol,
 			],

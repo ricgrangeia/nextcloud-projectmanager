@@ -155,14 +155,21 @@ const burndown = computed(() => {
 	const days = grid.value.days
 	const hoursByDay = grid.value.hoursByDay
 	const inScopeModules = grid.value.modules.filter((m) => m.inEstimate)
+	const allModules = grid.value.modules
 	let cumulative = 0
-	const doneSeries = days.map((day) => {
+	let cumulativeTotal = 0
+	const doneSeries = []
+	const doneTotalSeries = []
+	days.forEach((day) => {
 		const dayHours = hoursByDay[day] || 0
 		const doneForDay = inScopeModules.reduce((sum, m) => sum + ((m.pctByDay[day] || 0) / 100) * dayHours, 0)
+		const doneForDayTotal = allModules.reduce((sum, m) => sum + ((m.pctByDay[day] || 0) / 100) * dayHours, 0)
 		cumulative += doneForDay
-		return Math.round(cumulative * 100) / 100
+		cumulativeTotal += doneForDayTotal
+		doneSeries.push(Math.round(cumulative * 100) / 100)
+		doneTotalSeries.push(Math.round(cumulativeTotal * 100) / 100)
 	})
-	return { days, doneSeries, estimatedH: grid.value.summary.estimatedH }
+	return { days, doneSeries, doneTotalSeries, estimatedH: grid.value.summary.estimatedH }
 })
 
 async function createExampleFromSettings() {
@@ -575,6 +582,12 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						<td>{{ grid.summary.remainingDays }}d</td>
 						<td v-if="grid.summary.costEnabled">{{ fmtCost(grid.summary.remainingCost, grid.summary.currencySymbol) }}</td>
 					</tr>
+					<tr>
+						<td>{{ t('projectmanager', 'Remaining (total)') }}</td>
+						<td>{{ fmtH(grid.summary.remainingTotalH) }}</td>
+						<td>{{ grid.summary.remainingTotalDays }}d</td>
+						<td v-if="grid.summary.costEnabled">{{ fmtCost(grid.summary.remainingTotalCost, grid.summary.currencySymbol) }}</td>
+					</tr>
 					</tbody>
 				</table>
 			</div>
@@ -584,8 +597,10 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 				<BurndownChart
 					:days="burndown.days"
 					:done-series="burndown.doneSeries"
+					:done-total-series="burndown.doneTotalSeries"
 					:estimated-h="burndown.estimatedH"
 					:done-label="t('projectmanager', 'Done (in scope)')"
+					:done-total-label="t('projectmanager', 'Done (total)')"
 					:estimated-label="t('projectmanager', 'Estimated (in scope)')" />
 			</div>
 		</div>

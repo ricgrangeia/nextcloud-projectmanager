@@ -45,6 +45,7 @@ OC.L10N.register(
     "Done (OTHERS)": "Voltooid (OVERIGE)",
     "Done (total)": "Voltooid (totaal)",
     "Remaining (in scope)": "Resterend (binnen scope)",
+    "Remaining (total)": "Resterend (totaal)",
     "+ Feature": "+ Functionaliteit",
     "Section (e.g. ADMISSIONS)": "Sectie (bijv. OPNAMES)",
     "Feature name": "Naam functionaliteit",

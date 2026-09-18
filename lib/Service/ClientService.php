@@ -87,6 +87,7 @@ class ClientService {
 			'doneOthersH' => 0.0, 'doneOthersCost' => 0.0,
 			'doneTotalH' => 0.0, 'doneTotalCost' => 0.0,
 			'remainingH' => 0.0, 'remainingCost' => 0.0,
+			'remainingTotalH' => 0.0, 'remainingTotalCost' => 0.0,
 		];
 		$costEnabled = false;
 		$projectSummaries = [];
@@ -99,6 +100,7 @@ class ClientService {
 			$totals['doneOthersH'] += $summary['doneOthersH'];
 			$totals['doneTotalH'] += $summary['doneTotalH'];
 			$totals['remainingH'] += $summary['remainingH'];
+			$totals['remainingTotalH'] += $summary['remainingTotalH'];
 
 			if ($summary['costEnabled']) {
 				$costEnabled = true;
@@ -107,6 +109,7 @@ class ClientService {
 				$totals['doneOthersCost'] += $summary['doneOthersCost'];
 				$totals['doneTotalCost'] += $summary['doneTotalCost'];
 				$totals['remainingCost'] += $summary['remainingCost'];
+				$totals['remainingTotalCost'] += $summary['remainingTotalCost'];
 			}
 
 			$projectSummaries[] = [
