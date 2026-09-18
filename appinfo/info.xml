@@ -8,13 +8,15 @@
 Points, log day-to-day work as Leaves, and let the app compute done/remaining hours
 automatically from a largest-remainder percentage split per point and day. Includes
 Features (proposal vs. status) and Tests (validation log) views, plus .xlsx export.]]></description>
-	<version>1.1.2</version>
+	<version>1.1.3</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="ricardo@grangeia.pt">Ricardo</author>
 	<author mail="ricardograngeia@gmail.com">Ricardo</author>
 	<namespace>ProjectManager</namespace>
 	<category>organization</category>
-	<bugs>https://github.com/ricardo/projectmanager/issues</bugs>
+	<bugs>https://github.com/ricgrangeia/nextcloud-projectmanager/issues</bugs>
+	<repository type="git">https://github.com/ricgrangeia/nextcloud-projectmanager.git</repository>
+	<website>https://github.com/ricgrangeia/nextcloud-projectmanager</website>
 	<dependencies>
 		<php min-version="8.2" max-version="8.5"/>
 		<database min-version="8.0">mysql</database>
