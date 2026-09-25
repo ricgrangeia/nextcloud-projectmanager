@@ -26,8 +26,23 @@ use OCP\DB\Types;
  * @method void setArchived(bool $archived)
  * @method ?int getClientId()
  * @method void setClientId(?int $clientId)
+ * @method string getPhase()
+ * @method void setPhase(string $phase)
+ * @method ?string getBrief()
+ * @method void setBrief(?string $brief)
+ * @method ?string getWaitingOnClient()
+ * @method void setWaitingOnClient(?string $waitingOnClient)
+ * @method int getUpdateEveryDays()
+ * @method void setUpdateEveryDays(int $updateEveryDays)
  */
 class Project extends Entity implements \JsonSerializable {
+	public const PHASE_BRIEFING = 'briefing';
+	public const PHASE_DEVELOPMENT = 'development';
+	public const PHASE_INTERNAL_QA = 'internal_qa';
+	public const PHASE_CLIENT_REVIEW = 'client_review';
+	public const PHASE_DELIVERED = 'delivered';
+	public const PHASE_CLOSED = 'closed';
+
 	protected string $userId = '';
 	protected string $name = '';
 	protected float $hoursPerWorkingDay = 7.0;
@@ -37,6 +52,10 @@ class Project extends Entity implements \JsonSerializable {
 	protected bool $showCostInSummary = false;
 	protected bool $archived = false;
 	protected ?int $clientId = null;
+	protected string $phase = self::PHASE_DEVELOPMENT;
+	protected ?string $brief = '';
+	protected ?string $waitingOnClient = '';
+	protected int $updateEveryDays = 7;
 
 	public function __construct() {
 		$this->addType('userId', Types::STRING);
@@ -48,6 +67,10 @@ class Project extends Entity implements \JsonSerializable {
 		$this->addType('showCostInSummary', Types::BOOLEAN);
 		$this->addType('archived', Types::BOOLEAN);
 		$this->addType('clientId', Types::BIGINT);
+		$this->addType('phase', Types::STRING);
+		$this->addType('brief', Types::TEXT);
+		$this->addType('waitingOnClient', Types::TEXT);
+		$this->addType('updateEveryDays', Types::INTEGER);
 	}
 
 	public function jsonSerialize(): array {
@@ -62,6 +85,10 @@ class Project extends Entity implements \JsonSerializable {
 			'showCostInSummary' => $this->showCostInSummary,
 			'archived' => $this->archived,
 			'clientId' => $this->clientId,
+			'phase' => $this->phase,
+			'brief' => $this->brief ?? '',
+			'waitingOnClient' => $this->waitingOnClient ?? '',
+			'updateEveryDays' => $this->updateEveryDays,
 		];
 	}
 }

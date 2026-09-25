@@ -58,9 +58,11 @@ class ClientController extends Controller {
 		?float $hourlyRate = null,
 		bool $hourlyRateProvided = false,
 		?string $currencySymbol = null,
+		?string $email = null,
+		bool $emailProvided = false,
 	): DataResponse {
 		try {
-			return new DataResponse($this->clientService->update($id, $this->getUserId(), $name, $hourlyRate, $hourlyRateProvided, $currencySymbol));
+			return new DataResponse($this->clientService->update($id, $this->getUserId(), $name, $hourlyRate, $hourlyRateProvided, $currencySymbol, $email, $emailProvided));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}

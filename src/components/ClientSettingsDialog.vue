@@ -13,6 +13,7 @@ function open(client) {
 		name: client.name,
 		hourlyRate: client.hourlyRate ?? '',
 		currencySymbol: client.currencySymbol,
+		email: client.email ?? '',
 	}
 }
 
@@ -30,6 +31,8 @@ async function submit() {
 		hourlyRate,
 		hourlyRateProvided: true,
 		currencySymbol: form.value.currencySymbol || '€',
+		email: form.value.email.trim() === '' ? null : form.value.email.trim(),
+		emailProvided: true,
 	})
 	form.value = null
 	await Promise.all([loadClients(), loadProjects()])
@@ -64,6 +67,10 @@ defineExpose({ open })
 			<label class="dialog-field">
 				<span class="dialog-label">{{ t('projectmanager', 'Currency symbol') }}</span>
 				<input v-model="form.currencySymbol" type="text" maxlength="8">
+			</label>
+			<label class="dialog-field">
+				<span class="dialog-label">{{ t('projectmanager', 'Client email') }}</span>
+				<input v-model="form.email" type="email" :placeholder="t('projectmanager', 'Used to draft status update emails')">
 			</label>
 			<p class="dialog-hint">{{ t('projectmanager', "Projects under this client use this hourly rate unless they set their own, and always use this client's currency.") }}</p>
 		</div>

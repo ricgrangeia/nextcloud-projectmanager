@@ -9,7 +9,7 @@ const router = useRouter()
 async function createExample() {
 	const project = await api.createExampleProject()
 	await loadProjects()
-	router.push({ name: 'grid', params: { id: project.id } })
+	router.push({ name: 'overview', params: { id: project.id } })
 }
 </script>
 

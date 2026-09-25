@@ -51,6 +51,8 @@ class ClientService {
 		?float $hourlyRate = null,
 		bool $hourlyRateProvided = false,
 		?string $currencySymbol = null,
+		?string $email = null,
+		bool $emailProvided = false,
 	): Client {
 		$client = $this->find($id, $userId);
 		if ($name !== null) {
@@ -61,6 +63,9 @@ class ClientService {
 		}
 		if ($currencySymbol !== null) {
 			$client->setCurrencySymbol($currencySymbol);
+		}
+		if ($emailProvided) {
+			$client->setEmail($email);
 		}
 		return $this->clientMapper->update($client);
 	}

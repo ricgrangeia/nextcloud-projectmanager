@@ -116,7 +116,7 @@ class ExportService {
 			$row++;
 
 			foreach ($module['points'] as $point) {
-				$this->setCell($sheet, 1, $row, $point['code']);
+				$this->setCell($sheet, 1, $row, $point['code'] . ($point['clientVisible'] ? ' ★' : ''));
 				$this->setCell($sheet, 3, $row, $point['description']);
 				$this->setCell($sheet, 4, $row, $point['estimateH']);
 				$this->setCell($sheet, 5, $row, $point['doneH']);

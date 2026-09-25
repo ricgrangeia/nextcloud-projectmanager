@@ -26,7 +26,7 @@ function fmtCost(value, symbol) {
 }
 
 function openProject(project) {
-	router.push({ name: 'grid', params: { id: project.id } })
+	router.push({ name: 'overview', params: { id: project.id } })
 }
 </script>
 

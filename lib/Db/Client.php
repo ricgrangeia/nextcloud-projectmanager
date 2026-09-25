@@ -18,6 +18,8 @@ use OCP\DB\Types;
  * @method void setHourlyRate(?float $hourlyRate)
  * @method string getCurrencySymbol()
  * @method void setCurrencySymbol(string $currencySymbol)
+ * @method ?string getEmail()
+ * @method void setEmail(?string $email)
  */
 class Client extends Entity implements \JsonSerializable {
 	protected string $userId = '';
@@ -25,6 +27,7 @@ class Client extends Entity implements \JsonSerializable {
 	protected ?\DateTimeImmutable $createdAt = null;
 	protected ?float $hourlyRate = null;
 	protected string $currencySymbol = '€';
+	protected ?string $email = null;
 
 	public function __construct() {
 		$this->addType('userId', Types::STRING);
@@ -32,6 +35,7 @@ class Client extends Entity implements \JsonSerializable {
 		$this->addType('createdAt', Types::DATETIME_IMMUTABLE);
 		$this->addType('hourlyRate', Types::FLOAT);
 		$this->addType('currencySymbol', Types::STRING);
+		$this->addType('email', Types::STRING);
 	}
 
 	public function jsonSerialize(): array {
@@ -42,6 +46,7 @@ class Client extends Entity implements \JsonSerializable {
 			'createdAt' => $this->createdAt?->format(\DateTimeInterface::ATOM),
 			'hourlyRate' => $this->hourlyRate,
 			'currencySymbol' => $this->currencySymbol,
+			'email' => $this->email,
 		];
 	}
 }

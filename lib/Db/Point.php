@@ -20,6 +20,8 @@ use OCP\DB\Types;
  * @method void setStatus(string $status)
  * @method int getSortOrder()
  * @method void setSortOrder(int $sortOrder)
+ * @method bool getClientVisible()
+ * @method void setClientVisible(bool $clientVisible)
  */
 class Point extends Entity implements \JsonSerializable {
 	public const STATUS_TODO = 'todo';
@@ -33,6 +35,7 @@ class Point extends Entity implements \JsonSerializable {
 	protected ?float $estimateH = null;
 	protected string $status = self::STATUS_TODO;
 	protected int $sortOrder = 0;
+	protected bool $clientVisible = false;
 
 	public function __construct() {
 		$this->addType('moduleId', Types::INTEGER);
@@ -41,6 +44,7 @@ class Point extends Entity implements \JsonSerializable {
 		$this->addType('estimateH', Types::FLOAT);
 		$this->addType('status', Types::STRING);
 		$this->addType('sortOrder', Types::INTEGER);
+		$this->addType('clientVisible', Types::BOOLEAN);
 	}
 
 	public function jsonSerialize(): array {
@@ -52,6 +56,7 @@ class Point extends Entity implements \JsonSerializable {
 			'estimateH' => $this->estimateH,
 			'status' => $this->status,
 			'sortOrder' => $this->sortOrder,
+			'clientVisible' => $this->clientVisible,
 		];
 	}
 }

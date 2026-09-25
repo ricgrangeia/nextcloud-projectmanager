@@ -45,7 +45,11 @@
 					"currencySymbol": { "type": "string", "default": "€", "description": "Shown after the cost value, e.g. \"350.00 €\"" },
 					"showCostInSummary": { "type": "boolean", "default": false },
 					"archived": { "type": "boolean", "default": false, "description": "Archived projects are hidden from the default project list but keep all their data" },
-					"clientId": { "type": "integer", "nullable": true, "description": "Optional client this project belongs to, see /api/v1/clients" }
+					"clientId": { "type": "integer", "nullable": true, "description": "Optional client this project belongs to, see /api/v1/clients" },
+					"phase": { "type": "string", "enum": ["briefing", "development", "internal_qa", "client_review", "delivered", "closed"], "default": "development" },
+					"brief": { "type": "string", "description": "Short project brief: objective, scope, acceptance criteria" },
+					"waitingOnClient": { "type": "string", "description": "What is currently blocked on the client's side" },
+					"updateEveryDays": { "type": "integer", "default": 7, "description": "How often the client should get a status update, in days (0 disables the reminder)" }
 				}
 			},
 			"Client": {
@@ -56,7 +60,19 @@
 					"name": { "type": "string" },
 					"createdAt": { "type": "string", "format": "date-time", "nullable": true },
 					"hourlyRate": { "type": "number", "format": "float", "nullable": true, "description": "Default hourly rate used by this client's projects unless a project sets its own" },
-					"currencySymbol": { "type": "string", "default": "€", "description": "This client's projects always use this currency, regardless of any currency set on the project itself" }
+					"currencySymbol": { "type": "string", "default": "€", "description": "This client's projects always use this currency, regardless of any currency set on the project itself" },
+					"email": { "type": "string", "nullable": true, "description": "Used as the default recipient when drafting a status update email" }
+				}
+			},
+			"Milestone": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "integer" },
+					"projectId": { "type": "integer" },
+					"name": { "type": "string" },
+					"targetDate": { "type": "string", "format": "date", "nullable": true },
+					"reachedDate": { "type": "string", "format": "date", "nullable": true, "description": "Set once the milestone is reached" },
+					"sortOrder": { "type": "integer" }
 				}
 			},
 			"Module": {
@@ -79,7 +95,8 @@
 					"description": { "type": "string" },
 					"estimateH": { "type": "number", "format": "float", "nullable": true, "description": "null means no estimate (typically OTHERS points)" },
 					"status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"] },
-					"sortOrder": { "type": "integer" }
+					"sortOrder": { "type": "integer" },
+					"clientVisible": { "type": "boolean", "default": false, "description": "Marks this point as something the client sees/cares about" }
 				}
 			},
 			"Leaf": {
@@ -322,7 +339,9 @@
 									"name": { "type": "string" },
 									"hourlyRate": { "type": "number", "nullable": true, "description": "only applied when hourlyRateProvided=true, so it can be explicitly cleared to null" },
 									"hourlyRateProvided": { "type": "boolean", "default": false },
-									"currencySymbol": { "type": "string" }
+									"currencySymbol": { "type": "string" },
+									"email": { "type": "string", "nullable": true, "description": "only applied when emailProvided=true, so it can be explicitly cleared to null" },
+									"emailProvided": { "type": "boolean", "default": false }
 								}
 							}
 						}
@@ -363,7 +382,7 @@
 					"content": { "multipart/form-data": { "schema": { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "format": "binary" } } } } }
 				},
 				"responses": {
-					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "clients": { "type": "integer" }, "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "features": { "type": "integer" }, "tests": { "type": "integer" } } } } } },
+					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "clients": { "type": "integer" }, "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "features": { "type": "integer" }, "tests": { "type": "integer" }, "milestones": { "type": "integer" } } } } } },
 					"400": { "description": "Missing/invalid file, or malformed backup structure" }
 				}
 			}
@@ -377,7 +396,7 @@
 			},
 			"put": {
 				"operationId": "updateProject",
-				"summary": "Rename a project or change its hours-per-working-day constant",
+				"summary": "Rename a project, change its hours-per-working-day constant, or update its status fields (phase, brief, waitingOnClient, updateEveryDays)",
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
 				"requestBody": {
 					"content": {
@@ -393,7 +412,11 @@
 									"showCostInSummary": { "type": "boolean" },
 									"archived": { "type": "boolean", "description": "Set to true to archive the project (hides it from the default project list without deleting anything), or false to restore it" },
 									"clientId": { "type": "integer", "nullable": true, "description": "only applied when clientIdProvided=true, so it can be explicitly cleared to null (unassigning the client)" },
-									"clientIdProvided": { "type": "boolean", "default": false }
+									"clientIdProvided": { "type": "boolean", "default": false },
+									"phase": { "type": "string", "enum": ["briefing", "development", "internal_qa", "client_review", "delivered", "closed"] },
+									"brief": { "type": "string" },
+									"waitingOnClient": { "type": "string" },
+									"updateEveryDays": { "type": "integer" }
 								}
 							}
 						}
@@ -403,7 +426,89 @@
 			},
 			"delete": {
 				"operationId": "deleteProject",
-				"summary": "Delete a project and everything under it (modules, points, leaves, day-hours, features, tests)",
+				"summary": "Delete a project and everything under it (modules, points, leaves, day-hours, features, tests, milestones)",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+			}
+		},
+		"/api/v1/projects/{id}/overview": {
+			"get": {
+				"operationId": "getOverview",
+				"summary": "Read this first when resuming a project. Answers where things stand: phase, milestones (with the next one and days left/overdue), what's waiting on the client, the last things worked on, in-progress points, client-visible points still to show, and quality issues.",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"project": { "$ref": "#/components/schemas/Project" },
+										"summary": { "type": "object", "description": "same shape as ProjectGrid.summary" },
+										"milestones": { "type": "array", "items": { "allOf": [{ "$ref": "#/components/schemas/Milestone" }, { "type": "object", "properties": { "reached": { "type": "boolean" }, "daysUntil": { "type": "integer", "nullable": true }, "overdue": { "type": "boolean" } } }] } },
+										"nextMilestone": { "nullable": true, "allOf": [{ "$ref": "#/components/schemas/Milestone" }] },
+										"waitingOnClient": { "type": "string" },
+										"pendingFeatures": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" }, "section": { "type": "string" }, "name": { "type": "string" }, "externalPending": { "type": "string" } } }, "description": "Features with a non-empty externalPending" },
+										"recentLeaves": { "type": "array", "items": { "type": "object", "description": "Leaf plus pointCode/pointDescription, the 5 most recent by workDate" } },
+										"inProgressPoints": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" } },
+										"clientVisiblePoints": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" } },
+										"quality": { "type": "object", "properties": { "failedTests": { "type": "array", "items": { "type": "object" } }, "toTestCount": { "type": "integer" }, "notStartedFeatureCount": { "type": "integer" } } },
+										"brief": { "type": "string" }
+									}
+								}
+							}
+						}
+					},
+					"404": { "description": "Not found" }
+				}
+			}
+		},
+		"/api/v1/projects/{projectId}/milestones": {
+			"get": {
+				"operationId": "listMilestones",
+				"summary": "List a project's milestones",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Milestone" } } } } }, "404": { "description": "Not found" } }
+			},
+			"post": {
+				"operationId": "createMilestone",
+				"summary": "Create a milestone",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"required": true,
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "targetDate": { "type": "string", "format": "date", "nullable": true }, "sortOrder": { "type": "integer", "default": 0 } } } } }
+				},
+				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Milestone" } } } }, "404": { "description": "Project not found" } }
+			}
+		},
+		"/api/v1/milestones/{id}": {
+			"put": {
+				"operationId": "updateMilestone",
+				"summary": "Update a milestone. Set reachedDate (with reachedDateProvided=true) to mark it reached; pass an empty reachedDate to un-reach it.",
+				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+				"requestBody": {
+					"content": {
+						"application/x-www-form-urlencoded": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": { "type": "string" },
+									"targetDate": { "type": "string", "format": "date", "nullable": true, "description": "only applied when targetDateProvided=true" },
+									"targetDateProvided": { "type": "boolean", "default": false },
+									"reachedDate": { "type": "string", "format": "date", "nullable": true, "description": "only applied when reachedDateProvided=true" },
+									"reachedDateProvided": { "type": "boolean", "default": false },
+									"sortOrder": { "type": "integer" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Milestone" } } } }, "404": { "description": "Not found" } }
+			},
+			"delete": {
+				"operationId": "deleteMilestone",
+				"summary": "Delete a milestone",
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
 				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
 			}
@@ -463,7 +568,8 @@
 									"estimateH": { "type": "number", "nullable": true, "description": "only applied when estimateHProvided=true, so it can be explicitly cleared to null" },
 									"estimateHProvided": { "type": "boolean", "default": false },
 									"status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"] },
-									"sortOrder": { "type": "integer" }
+									"sortOrder": { "type": "integer" },
+									"clientVisible": { "type": "boolean", "description": "Marks this point as something the client sees/cares about" }
 								}
 							}
 						}

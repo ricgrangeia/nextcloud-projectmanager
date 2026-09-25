@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\ProjectManager\Controller;
 
 use OCA\ProjectManager\Service\ExampleProjectService;
+use OCA\ProjectManager\Service\OverviewService;
 use OCA\ProjectManager\Service\ProjectService;
 use OCA\ProjectManager\Service\TrackerService;
 use OCP\AppFramework\Controller;
@@ -23,6 +24,7 @@ class ProjectController extends Controller {
 		private ProjectService $projectService,
 		private TrackerService $trackerService,
 		private ExampleProjectService $exampleProjectService,
+		private OverviewService $overviewService,
 		private IUserSession $userSession,
 	) {
 		parent::__construct($appName, $request);
@@ -73,9 +75,23 @@ class ProjectController extends Controller {
 		?bool $archived = null,
 		?int $clientId = null,
 		bool $clientIdProvided = false,
+		?string $phase = null,
+		?string $brief = null,
+		?string $waitingOnClient = null,
+		?int $updateEveryDays = null,
 	): DataResponse {
 		try {
-			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived, $clientId, $clientIdProvided));
+			return new DataResponse($this->projectService->update($id, $this->getUserId(), $name, $hoursPerWorkingDay, $hourlyRate, $hourlyRateProvided, $currencySymbol, $showCostInSummary, $archived, $clientId, $clientIdProvided, $phase, $brief, $waitingOnClient, $updateEveryDays));
+		} catch (DoesNotExistException) {
+			return new DataResponse([], Http::STATUS_NOT_FOUND);
+		}
+	}
+
+	#[NoAdminRequired]
+	#[FrontpageRoute(verb: 'GET', url: '/api/projects/{id}/overview', requirements: ['id' => '\d+'])]
+	public function overview(int $id): DataResponse {
+		try {
+			return new DataResponse($this->overviewService->build($id, $this->getUserId()));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}

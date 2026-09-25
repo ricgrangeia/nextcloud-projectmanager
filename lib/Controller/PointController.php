@@ -40,9 +40,9 @@ class PointController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'PUT', url: '/api/points/{id}', requirements: ['id' => '\d+'])]
-	public function update(int $id, ?string $code = null, ?string $description = null, ?float $estimateH = null, bool $estimateHProvided = false, ?string $status = null, ?int $sortOrder = null): DataResponse {
+	public function update(int $id, ?string $code = null, ?string $description = null, ?float $estimateH = null, bool $estimateHProvided = false, ?string $status = null, ?int $sortOrder = null, ?bool $clientVisible = null): DataResponse {
 		try {
-			return new DataResponse($this->trackerService->updatePoint($id, $this->getUserId(), $code, $description, $estimateH, $estimateHProvided, $status, $sortOrder));
+			return new DataResponse($this->trackerService->updatePoint($id, $this->getUserId(), $code, $description, $estimateH, $estimateHProvided, $status, $sortOrder, $clientVisible));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}

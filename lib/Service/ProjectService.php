@@ -7,6 +7,7 @@ namespace OCA\ProjectManager\Service;
 use OCA\ProjectManager\Db\DayHoursMapper;
 use OCA\ProjectManager\Db\FeatureMapper;
 use OCA\ProjectManager\Db\LeafMapper;
+use OCA\ProjectManager\Db\MilestoneMapper;
 use OCA\ProjectManager\Db\ModuleMapper;
 use OCA\ProjectManager\Db\PointMapper;
 use OCA\ProjectManager\Db\Project;
@@ -24,6 +25,7 @@ class ProjectService {
 		private DayHoursMapper $dayHoursMapper,
 		private FeatureMapper $featureMapper,
 		private TestEntryMapper $testEntryMapper,
+		private MilestoneMapper $milestoneMapper,
 	) {
 	}
 
@@ -66,6 +68,10 @@ class ProjectService {
 		?bool $archived = null,
 		?int $clientId = null,
 		bool $clientIdProvided = false,
+		?string $phase = null,
+		?string $brief = null,
+		?string $waitingOnClient = null,
+		?int $updateEveryDays = null,
 	): Project {
 		$project = $this->find($id, $userId);
 		if ($name !== null) {
@@ -89,6 +95,18 @@ class ProjectService {
 		if ($clientIdProvided) {
 			$project->setClientId($clientId);
 		}
+		if ($phase !== null) {
+			$project->setPhase($phase);
+		}
+		if ($brief !== null) {
+			$project->setBrief($brief);
+		}
+		if ($waitingOnClient !== null) {
+			$project->setWaitingOnClient($waitingOnClient);
+		}
+		if ($updateEveryDays !== null && $updateEveryDays >= 0) {
+			$project->setUpdateEveryDays($updateEveryDays);
+		}
 		return $this->projectMapper->update($project);
 	}
 
@@ -108,6 +126,7 @@ class ProjectService {
 		$this->dayHoursMapper->deleteAllForProject($id);
 		$this->featureMapper->deleteAllForProject($id);
 		$this->testEntryMapper->deleteAllForProject($id);
+		$this->milestoneMapper->deleteAllForProject($id);
 
 		$this->projectMapper->delete($project);
 	}

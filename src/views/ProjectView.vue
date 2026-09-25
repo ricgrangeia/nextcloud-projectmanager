@@ -10,6 +10,7 @@ const props = defineProps({
 <template>
 	<div class="project-view">
 		<nav class="project-tabs">
+			<router-link :to="{ name: 'overview', params: { id } }">{{ t('projectmanager', 'Overview') }}</router-link>
 			<router-link :to="{ name: 'grid', params: { id } }">{{ t('projectmanager', 'Hours grid') }}</router-link>
 			<router-link :to="{ name: 'features', params: { id } }">{{ t('projectmanager', 'Features') }}</router-link>
 			<router-link :to="{ name: 'tests', params: { id } }">{{ t('projectmanager', 'Tests') }}</router-link>

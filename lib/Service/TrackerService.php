@@ -113,7 +113,7 @@ class TrackerService {
 		return $this->pointMapper->insert($point);
 	}
 
-	public function updatePoint(int $pointId, string $userId, ?string $code, ?string $description, ?float $estimateH, bool $estimateHProvided, ?string $status, ?int $sortOrder): Point {
+	public function updatePoint(int $pointId, string $userId, ?string $code, ?string $description, ?float $estimateH, bool $estimateHProvided, ?string $status, ?int $sortOrder, ?bool $clientVisible = null): Point {
 		$point = $this->assertPointOwned($pointId, $userId);
 		if ($code !== null) {
 			$point->setCode($code);
@@ -129,6 +129,9 @@ class TrackerService {
 		}
 		if ($sortOrder !== null) {
 			$point->setSortOrder($sortOrder);
+		}
+		if ($clientVisible !== null) {
+			$point->setClientVisible($clientVisible);
 		}
 		return $this->pointMapper->update($point);
 	}
@@ -279,6 +282,7 @@ class TrackerService {
 					'remainingH' => ($r = $this->calc->computeRemainingHours($estimateH, $doneH)) !== null ? round($r, 2) : null,
 					'status' => $point->getStatus(),
 					'sortOrder' => $point->getSortOrder(),
+					'clientVisible' => $point->getClientVisible(),
 					'pctByDay' => $pointPctByDay,
 					'leaves' => array_map(static fn (Leaf $l) => [
 						'id' => $l->getId(),
@@ -352,6 +356,10 @@ class TrackerService {
 				'showCostInSummary' => $project->getShowCostInSummary(),
 				'archived' => $project->getArchived(),
 				'clientId' => $project->getClientId(),
+				'phase' => $project->getPhase(),
+				'brief' => $project->getBrief() ?? '',
+				'waitingOnClient' => $project->getWaitingOnClient() ?? '',
+				'updateEveryDays' => $project->getUpdateEveryDays(),
 			],
 			'days' => $days,
 			'hoursByDay' => $hoursByDay,

@@ -12,6 +12,8 @@ use OCA\ProjectManager\Db\Feature;
 use OCA\ProjectManager\Db\FeatureMapper;
 use OCA\ProjectManager\Db\Leaf;
 use OCA\ProjectManager\Db\LeafMapper;
+use OCA\ProjectManager\Db\Milestone;
+use OCA\ProjectManager\Db\MilestoneMapper;
 use OCA\ProjectManager\Db\Module;
 use OCA\ProjectManager\Db\ModuleMapper;
 use OCA\ProjectManager\Db\Point;
@@ -39,6 +41,7 @@ class BackupService {
 		private DayHoursMapper $dayHoursMapper,
 		private FeatureMapper $featureMapper,
 		private TestEntryMapper $testEntryMapper,
+		private MilestoneMapper $milestoneMapper,
 	) {
 	}
 
@@ -61,6 +64,7 @@ class BackupService {
 				'name' => $c->getName(),
 				'hourlyRate' => $c->getHourlyRate(),
 				'currencySymbol' => $c->getCurrencySymbol(),
+				'email' => $c->getEmail(),
 			], $clients),
 			'projects' => $projects,
 		];
@@ -93,6 +97,7 @@ class BackupService {
 					'estimateH' => $point->getEstimateH(),
 					'status' => $point->getStatus(),
 					'sortOrder' => $point->getSortOrder(),
+					'clientVisible' => $point->getClientVisible(),
 					'leaves' => array_map(static fn (Leaf $leaf) => [
 						'description' => $leaf->getDescription(),
 						'workDate' => $leaf->getWorkDate()->format('Y-m-d'),
@@ -117,7 +122,17 @@ class BackupService {
 			'showCostInSummary' => $project->getShowCostInSummary(),
 			'archived' => $project->getArchived(),
 			'clientName' => $project->getClientId() !== null ? ($clientNamesById[$project->getClientId()] ?? null) : null,
+			'phase' => $project->getPhase(),
+			'brief' => $project->getBrief(),
+			'waitingOnClient' => $project->getWaitingOnClient(),
+			'updateEveryDays' => $project->getUpdateEveryDays(),
 			'modules' => $moduleExports,
+			'milestones' => array_map(static fn (Milestone $m) => [
+				'name' => $m->getName(),
+				'targetDate' => $m->getTargetDate()?->format('Y-m-d'),
+				'reachedDate' => $m->getReachedDate()?->format('Y-m-d'),
+				'sortOrder' => $m->getSortOrder(),
+			], $this->milestoneMapper->findAllForProject($project->getId())),
 			'dayHours' => array_map(static fn (DayHours $d) => [
 				'workDate' => $d->getWorkDate()->format('Y-m-d'),
 				'hours' => $d->getHours(),
@@ -152,7 +167,7 @@ class BackupService {
 			throw new \InvalidArgumentException('Not a valid Project Manager backup file');
 		}
 
-		$counts = ['clients' => 0, 'projects' => 0, 'modules' => 0, 'points' => 0, 'leaves' => 0, 'dayHours' => 0, 'features' => 0, 'tests' => 0];
+		$counts = ['clients' => 0, 'projects' => 0, 'modules' => 0, 'points' => 0, 'leaves' => 0, 'dayHours' => 0, 'features' => 0, 'tests' => 0, 'milestones' => 0];
 
 		/** @var array<string, int> $clientIdsByName */
 		$clientIdsByName = [];
@@ -170,6 +185,7 @@ class BackupService {
 			$client->setName($name);
 			$client->setHourlyRate(isset($clientData['hourlyRate']) && $clientData['hourlyRate'] !== null ? (float) $clientData['hourlyRate'] : null);
 			$client->setCurrencySymbol((string) ($clientData['currencySymbol'] ?? '€'));
+			$client->setEmail(isset($clientData['email']) && $clientData['email'] !== null ? (string) $clientData['email'] : null);
 			$client->setCreatedAt(new \DateTimeImmutable());
 			$client = $this->clientMapper->insert($client);
 			$clientIdsByName[$name] = $client->getId();
@@ -193,6 +209,10 @@ class BackupService {
 			$project->setShowCostInSummary((bool) ($projectData['showCostInSummary'] ?? false));
 			$project->setArchived((bool) ($projectData['archived'] ?? false));
 			$project->setClientId($clientId);
+			$project->setPhase((string) ($projectData['phase'] ?? Project::PHASE_DEVELOPMENT));
+			$project->setBrief(isset($projectData['brief']) ? (string) $projectData['brief'] : '');
+			$project->setWaitingOnClient(isset($projectData['waitingOnClient']) ? (string) $projectData['waitingOnClient'] : '');
+			$project->setUpdateEveryDays((int) ($projectData['updateEveryDays'] ?? 7));
 			$project->setCreatedAt(new \DateTimeImmutable());
 			$project = $this->projectMapper->insert($project);
 			$counts['projects']++;
@@ -215,6 +235,7 @@ class BackupService {
 					$point->setEstimateH(isset($pointData['estimateH']) && $pointData['estimateH'] !== null ? (float) $pointData['estimateH'] : null);
 					$point->setStatus((string) ($pointData['status'] ?? 'todo'));
 					$point->setSortOrder((int) ($pointData['sortOrder'] ?? 0));
+					$point->setClientVisible((bool) ($pointData['clientVisible'] ?? false));
 					$point = $this->pointMapper->insert($point);
 					$counts['points']++;
 
@@ -266,6 +287,17 @@ class BackupService {
 				$test->setSortOrder((int) ($testData['sortOrder'] ?? 0));
 				$this->testEntryMapper->insert($test);
 				$counts['tests']++;
+			}
+
+			foreach ($projectData['milestones'] ?? [] as $milestoneData) {
+				$milestone = new Milestone();
+				$milestone->setProjectId($project->getId());
+				$milestone->setName((string) ($milestoneData['name'] ?? ''));
+				$milestone->setTargetDate(isset($milestoneData['targetDate']) && $milestoneData['targetDate'] !== null ? new \DateTimeImmutable((string) $milestoneData['targetDate']) : null);
+				$milestone->setReachedDate(isset($milestoneData['reachedDate']) && $milestoneData['reachedDate'] !== null ? new \DateTimeImmutable((string) $milestoneData['reachedDate']) : null);
+				$milestone->setSortOrder((int) ($milestoneData['sortOrder'] ?? 0));
+				$this->milestoneMapper->insert($milestone);
+				$counts['milestones']++;
 			}
 		}
 

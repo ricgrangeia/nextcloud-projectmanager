@@ -7,11 +7,13 @@ import Pencil from 'vue-material-design-icons/Pencil.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
 import ChevronDown from 'vue-material-design-icons/ChevronDown.vue'
 import ChevronRight from 'vue-material-design-icons/ChevronRight.vue'
+import Star from 'vue-material-design-icons/Star.vue'
+import StarOutline from 'vue-material-design-icons/StarOutline.vue'
 import api from '../api/client.js'
 import StatusPill from '../components/StatusPill.vue'
 import EditableCell from '../components/EditableCell.vue'
 import BurndownChart from '../components/BurndownChart.vue'
-import { statusLabel } from '../utils/statusLabels.js'
+import { statusLabel, phaseLabel } from '../utils/statusLabels.js'
 import { state, loadProjects } from '../store/index.js'
 
 const props = defineProps({
@@ -31,6 +33,7 @@ const settingsForm = ref(null)
 const leafForm = ref(null)
 
 const POINT_STATUSES = ['todo', 'in_progress', 'partial', 'done']
+const PHASES = ['briefing', 'development', 'internal_qa', 'client_review', 'delivered', 'closed']
 
 function todayIso() {
 	const d = new Date()
@@ -76,6 +79,8 @@ function openSettingsForm() {
 		showCostInSummary: grid.value.project.showCostInSummary,
 		archived: grid.value.project.archived,
 		clientId: grid.value.project.clientId ?? '',
+		phase: grid.value.project.phase,
+		updateEveryDays: grid.value.project.updateEveryDays,
 	}
 }
 
@@ -115,6 +120,8 @@ async function submitSettingsForm() {
 		showCostInSummary: settingsForm.value.showCostInSummary,
 		clientId: settingsForm.value.clientId === '' ? null : Number(settingsForm.value.clientId),
 		clientIdProvided: true,
+		phase: settingsForm.value.phase,
+		updateEveryDays: Number(settingsForm.value.updateEveryDays) || 0,
 	})
 	settingsForm.value = null
 	await loadProjects()
@@ -306,6 +313,10 @@ async function updatePointStatus(point, status) {
 
 async function updatePointField(point, field, value) {
 	await api.updatePoint(point.id, { [field]: value })
+}
+
+async function toggleClientVisible(point) {
+	await api.updatePoint(point.id, { clientVisible: !point.clientVisible })
 	await load()
 }
 
@@ -456,6 +467,16 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 						<template v-for="point in module.points" :key="point.id">
 							<tr class="point-row">
 								<td class="col-point">
+									<button
+										type="button"
+										class="icon-btn star-btn"
+										:class="{ 'star-btn--active': point.clientVisible }"
+										:aria-label="t('projectmanager', 'Mark as client-visible')"
+										:title="t('projectmanager', 'Mark as client-visible')"
+										@click="toggleClientVisible(point)">
+										<Star v-if="point.clientVisible" :size="14" />
+										<StarOutline v-else :size="14" />
+									</button>
 									<EditableCell :model-value="point.code" @save="v => updatePointField(point, 'code', v)" />
 								</td>
 								<td class="col-module"></td>
@@ -692,6 +713,16 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 			<label class="dialog-field">
 				<span class="dialog-label">{{ t('projectmanager', 'Hours per working day') }}</span>
 				<input v-model="settingsForm.hoursPerWorkingDay" type="number" step="0.5" min="0">
+			</label>
+			<label class="dialog-field">
+				<span class="dialog-label">{{ t('projectmanager', 'Phase') }}</span>
+				<select v-model="settingsForm.phase">
+					<option v-for="p in PHASES" :key="p" :value="p">{{ phaseLabel(p) }}</option>
+				</select>
+			</label>
+			<label class="dialog-field">
+				<span class="dialog-label">{{ t('projectmanager', 'Update the client every (days)') }}</span>
+				<input v-model="settingsForm.updateEveryDays" type="number" step="1" min="0" :placeholder="t('projectmanager', '0 to disable')">
 			</label>
 			<label class="dialog-field">
 				<span class="dialog-label">{{ t('projectmanager', 'Client') }}</span>
@@ -965,6 +996,17 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 .icon-btn:hover {
 	background-color: var(--color-background-hover);
 	color: var(--color-main-text);
+}
+
+.star-btn {
+	width: 16px;
+	height: 16px;
+	margin-right: 2px;
+	color: var(--color-text-maxcontrast);
+}
+
+.star-btn--active {
+	color: #dcb400;
 }
 
 .day-header {

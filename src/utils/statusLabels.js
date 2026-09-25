@@ -14,3 +14,16 @@ const LABELS = {
 export function statusLabel(status) {
 	return LABELS[status] ? LABELS[status]() : status
 }
+
+const PHASE_LABELS = {
+	briefing: () => t('projectmanager', 'Briefing'),
+	development: () => t('projectmanager', 'Development'),
+	internal_qa: () => t('projectmanager', 'Internal QA'),
+	client_review: () => t('projectmanager', 'Client review'),
+	delivered: () => t('projectmanager', 'Delivered'),
+	closed: () => t('projectmanager', 'Closed'),
+}
+
+export function phaseLabel(phase) {
+	return PHASE_LABELS[phase] ? PHASE_LABELS[phase]() : phase
+}

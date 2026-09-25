@@ -76,7 +76,7 @@ async function deleteClient(client) {
 
 function openProject(event, project) {
 	event?.preventDefault?.()
-	router.push({ name: 'grid', params: { id: project.id } })
+	router.push({ name: 'overview', params: { id: project.id } })
 }
 
 function openClient(event, client) {
