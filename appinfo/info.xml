@@ -9,7 +9,7 @@ Points grouped into Sections, log day-to-day work as Leaves, and let the app com
 done/remaining hours automatically from a largest-remainder percentage split per point
 and day. Track Milestones with the client (how and when something was presented, and
 its perceived acceptance), plus a Tests (validation log) view and .xlsx export.]]></description>
-	<version>1.3.0</version>
+	<version>1.3.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="ricardo@grangeia.pt">Ricardo</author>
 	<author mail="ricardograngeia@gmail.com">Ricardo</author>

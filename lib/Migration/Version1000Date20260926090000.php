@@ -11,7 +11,9 @@ use OCA\ProjectManager\Db\ModuleMapper;
 use OCA\ProjectManager\Db\Point;
 use OCA\ProjectManager\Db\PointMapper;
 use OCP\DB\ISchemaWrapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\DB\Types;
+use OCP\IDBConnection;
 use OCP\Migration\Attributes\AddColumn;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
@@ -21,6 +23,13 @@ use OCP\Migration\SimpleMigrationStep;
  * and, once they exist, copies every Feature's business data onto a Point.
  * The old `pm_features` table and `pm_points.client_visible` column are only
  * dropped in the next migration, once this data is safely copied over.
+ *
+ * postSchemaChange() runs after this migration's changeSchema() but BEFORE
+ * the next migration drops `client_visible` — so at this point the DB still
+ * has that column while the (already-deployed) Point entity no longer
+ * declares it. Reading points through PointMapper would hydrate a Point from
+ * that row and crash ("clientVisible is not a valid attribute"), so this
+ * reads points with a raw query (explicit column list) instead.
  */
 #[AddColumn(table: 'pm_points', name: 'business_value', description: 'Business value, merged in from the former Feature concept')]
 #[AddColumn(table: 'pm_points', name: 'external_pending', description: 'External pending dependency, merged in from the former Feature concept')]
@@ -31,6 +40,7 @@ use OCP\Migration\SimpleMigrationStep;
 #[AddColumn(table: 'pm_tests', name: 'point_id', description: 'Point this test validates; null means a general, unscoped test')]
 class Version1000Date20260926090000 extends SimpleMigrationStep {
 	public function __construct(
+		private IDBConnection $db,
 		private ModuleMapper $moduleMapper,
 		private PointMapper $pointMapper,
 		private FeatureMapper $featureMapper,
@@ -75,6 +85,38 @@ class Version1000Date20260926090000 extends SimpleMigrationStep {
 	}
 
 	/**
+	 * @return array{id: int, moduleId: int, code: string, sortOrder: int, businessValue: ?string, externalPending: ?string}[]
+	 */
+	private function fetchPointsRaw(array $moduleIds): array {
+		if ($moduleIds === []) {
+			return [];
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id', 'module_id', 'code', 'sort_order', 'business_value', 'external_pending')
+			->from('pm_points')
+			->where($qb->expr()->in('module_id', $qb->createNamedParameter($moduleIds, IQueryBuilder::PARAM_INT_ARRAY)));
+		$rows = $qb->executeQuery()->fetchAll();
+
+		return array_map(static fn (array $row) => [
+			'id' => (int) $row['id'],
+			'moduleId' => (int) $row['module_id'],
+			'code' => (string) $row['code'],
+			'sortOrder' => (int) $row['sort_order'],
+			'businessValue' => $row['business_value'],
+			'externalPending' => $row['external_pending'],
+		], $rows);
+	}
+
+	private function updatePointBusinessFields(int $pointId, ?string $businessValue, ?string $externalPending): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update('pm_points')
+			->set('business_value', $qb->createNamedParameter($businessValue))
+			->set('external_pending', $qb->createNamedParameter($externalPending))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($pointId, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
+	}
+
+	/**
 	 * Merges every Feature into a Point: matched by `pointRef` when possible
 	 * (filling in blanks only, never overwriting), otherwise a new Module +
 	 * Point are created for it. Runs once the new columns above exist.
@@ -88,11 +130,11 @@ class Version1000Date20260926090000 extends SimpleMigrationStep {
 		foreach ($featuresByProject as $projectId => $features) {
 			$modules = $this->moduleMapper->findAllForProject($projectId);
 			$moduleIds = array_map(static fn (Module $m) => $m->getId(), $modules);
-			$points = $this->pointMapper->findAllForModules($moduleIds);
+			$points = $this->fetchPointsRaw($moduleIds);
 
 			$pointsByCode = [];
 			foreach ($points as $point) {
-				$pointsByCode[$point->getCode()] = $point;
+				$pointsByCode[$point['code']] = $point;
 			}
 			$modulesByName = [];
 			foreach ($modules as $module) {
@@ -102,7 +144,7 @@ class Version1000Date20260926090000 extends SimpleMigrationStep {
 			$moduleSortOrder = count($modules);
 			$pointSortOrderByModule = [];
 			foreach ($points as $point) {
-				$pointSortOrderByModule[$point->getModuleId()] = max($pointSortOrderByModule[$point->getModuleId()] ?? 0, $point->getSortOrder() + 1);
+				$pointSortOrderByModule[$point['moduleId']] = max($pointSortOrderByModule[$point['moduleId']] ?? 0, $point['sortOrder'] + 1);
 			}
 
 			foreach ($features as $feature) {
@@ -110,17 +152,19 @@ class Version1000Date20260926090000 extends SimpleMigrationStep {
 				$matched = $pointRef !== '' ? ($pointsByCode[$pointRef] ?? null) : null;
 
 				if ($matched !== null) {
+					$businessValue = $matched['businessValue'];
+					$externalPending = $matched['externalPending'];
 					$changed = false;
-					if (trim((string) $matched->getBusinessValue()) === '' && trim((string) $feature->getBusinessValue()) !== '') {
-						$matched->setBusinessValue($feature->getBusinessValue());
+					if (trim((string) $businessValue) === '' && trim((string) $feature->getBusinessValue()) !== '') {
+						$businessValue = $feature->getBusinessValue();
 						$changed = true;
 					}
-					if (trim((string) $matched->getExternalPending()) === '' && trim((string) $feature->getExternalPending()) !== '') {
-						$matched->setExternalPending($feature->getExternalPending());
+					if (trim((string) $externalPending) === '' && trim((string) $feature->getExternalPending()) !== '') {
+						$externalPending = $feature->getExternalPending();
 						$changed = true;
 					}
 					if ($changed) {
-						$this->pointMapper->update($matched);
+						$this->updatePointBusinessFields($matched['id'], $businessValue, $externalPending);
 					}
 					continue;
 				}
@@ -153,7 +197,14 @@ class Version1000Date20260926090000 extends SimpleMigrationStep {
 				$point->setExternalPending($feature->getExternalPending());
 				$this->pointMapper->insert($point);
 				$pointSortOrderByModule[$module->getId()] = ($pointSortOrderByModule[$module->getId()] ?? 0) + 1;
-				$pointsByCode[$point->getCode()] = $point;
+				$pointsByCode[$point->getCode()] = [
+					'id' => $point->getId(),
+					'moduleId' => $module->getId(),
+					'code' => $point->getCode(),
+					'sortOrder' => $point->getSortOrder(),
+					'businessValue' => $point->getBusinessValue(),
+					'externalPending' => $point->getExternalPending(),
+				];
 			}
 		}
 	}
