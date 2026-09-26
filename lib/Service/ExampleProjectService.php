@@ -8,14 +8,13 @@ use OCA\ProjectManager\Db\Project;
 
 /**
  * Seeds a fully worked example project — modules, points, leaves, day hours,
- * features and tests — so a first-time user can see how the tracker works
+ * milestones and tests — so a first-time user can see how the tracker works
  * without having to set anything up.
  */
 class ExampleProjectService {
 	public function __construct(
 		private ProjectService $projectService,
 		private TrackerService $trackerService,
-		private FeatureService $featureService,
 		private TestService $testService,
 		private MilestoneService $milestoneService,
 	) {
@@ -34,33 +33,36 @@ class ExampleProjectService {
 			$this->trackerService->setDayHours($projectId, $userId, $day, 7.5);
 		}
 
+		$this->milestoneService->create($projectId, $userId, 'Internal version', $day2, 0);
+		$demo = $this->milestoneService->create($projectId, $userId, 'Client demo', $day3, 1);
+		$this->milestoneService->update($demo->getId(), $userId, [
+			'reachedDate' => $day3,
+			'communicationChannel' => 'session',
+			'clientStatus' => 'presented',
+			'acceptancePct' => 80,
+		]);
+		$this->milestoneService->create($projectId, $userId, 'Final delivery', $today->modify('+10 days'), 2);
+
 		$p1 = $this->trackerService->createModule($projectId, $userId, 'P1', 'Structure', true, 0);
-		$p11 = $this->trackerService->createPoint($p1->getId(), $userId, 'P1.1', 'Backend multi-company base structure', 20.0, 'in_progress', 0);
+		$p11 = $this->trackerService->createPoint($p1->getId(), $userId, 'P1.1', 'Backend multi-company base structure', 20.0, 'in_progress', 0, 'Lets a user manage several companies from one account');
 		$this->trackerService->createLeaf($p11->getId(), $userId, 'Companies table (migration)', $day1, 0);
 		$this->trackerService->createLeaf($p11->getId(), $userId, 'ListAllCompanies endpoint', $day1, 1);
 		$this->trackerService->createLeaf($p11->getId(), $userId, 'Multi-company Company aggregate', $day2, 2);
-		$this->trackerService->updatePoint($p11->getId(), $userId, null, null, null, false, null, null, true);
+		$this->trackerService->updatePoint($p11->getId(), $userId, null, null, null, false, null, null, null, null, $demo->getId(), true);
 		$this->trackerService->createPoint($p1->getId(), $userId, 'P1.2', 'Frontend company switcher', 8.0, 'todo', 1);
 
 		$p2 = $this->trackerService->createModule($projectId, $userId, 'P2', 'HR', true, 1);
-		$p21 = $this->trackerService->createPoint($p2->getId(), $userId, 'P2.1', 'Employee CRUD', 15.0, 'done', 0);
+		$p21 = $this->trackerService->createPoint($p2->getId(), $userId, 'P2.1', 'Employee CRUD', 15.0, 'done', 0, 'Core HR record keeping');
 		$this->trackerService->createLeaf($p21->getId(), $userId, 'Employee list + create form', $day2, 0);
 		$this->trackerService->createLeaf($p21->getId(), $userId, 'Employee edit/delete', $day3, 1);
-		$this->trackerService->updatePoint($p21->getId(), $userId, null, null, null, false, null, null, true);
+		$this->trackerService->updatePoint($p21->getId(), $userId, null, null, null, false, null, null, null, null, $demo->getId(), true);
 
 		$others = $this->trackerService->createModule($projectId, $userId, 'O', 'OTHERS', false, 2);
 		$o1 = $this->trackerService->createPoint($others->getId(), $userId, 'O.1', 'Bug fixes / support', null, 'in_progress', 0);
 		$this->trackerService->createLeaf($o1->getId(), $userId, 'Fixed login redirect bug', $day3, 0);
 
-		$this->featureService->create($projectId, $userId, 'ONBOARDING', 'Company switcher', 'P1.1', 'in_progress', 'Lets a user manage several companies from one account', '', 0);
-		$this->featureService->create($projectId, $userId, 'HR', 'Employee management', 'P2.1', 'done', 'Core HR record keeping', '', 1);
-
 		$this->testService->create($projectId, $userId, 'Login', 'Regular user', 'User logs in with valid credentials', 'Redirected to the dashboard', 'passed', $day3, '', 0);
-		$this->testService->create($projectId, $userId, 'Company switcher', 'Regular user', 'Switch between companies from the header menu', 'The active company changes and data reloads', 'to_test', null, '', 1);
-
-		$this->milestoneService->create($projectId, $userId, 'Internal version', $day2, 0);
-		$this->milestoneService->update($this->milestoneService->create($projectId, $userId, 'Client demo', $day3, 1)->getId(), $userId, ['reachedDate' => $day3]);
-		$this->milestoneService->create($projectId, $userId, 'Final delivery', $today->modify('+10 days'), 2);
+		$this->testService->create($projectId, $userId, 'Company switcher', 'Regular user', 'Switch between companies from the header menu', 'The active company changes and data reloads', 'to_test', null, '', 1, $p11->getId());
 
 		$this->projectService->update($projectId, $userId, null, null, null, false, null, null, null, null, false, null, 'What was demoed matches what was pitched — company switcher and employee management are the two things they care about most.', 'Waiting on the client to confirm the list of companies to pre-load before we finalize the import script.', 3);
 

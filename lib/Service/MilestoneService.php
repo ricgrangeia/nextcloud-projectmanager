@@ -41,7 +41,7 @@ class MilestoneService {
 		$milestone = $this->milestoneMapper->find($id);
 		$this->projectMapper->find($milestone->getProjectId(), $userId);
 
-		foreach (['name', 'targetDate', 'reachedDate', 'sortOrder'] as $field) {
+		foreach (['name', 'targetDate', 'reachedDate', 'sortOrder', 'communicationChannel', 'clientStatus', 'acceptancePct'] as $field) {
 			if (array_key_exists($field, $fields) && $fields[$field] !== null) {
 				$setter = 'set' . ucfirst($field);
 				$milestone->$setter($fields[$field]);

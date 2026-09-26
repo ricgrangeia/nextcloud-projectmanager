@@ -27,3 +27,22 @@ const PHASE_LABELS = {
 export function phaseLabel(phase) {
 	return PHASE_LABELS[phase] ? PHASE_LABELS[phase]() : phase
 }
+
+const CHANNEL_LABELS = {
+	email: () => t('projectmanager', 'Email'),
+	session: () => t('projectmanager', 'Session'),
+}
+
+export function channelLabel(channel) {
+	return CHANNEL_LABELS[channel] ? CHANNEL_LABELS[channel]() : ''
+}
+
+const CLIENT_STATUS_LABELS = {
+	pending: () => t('projectmanager', 'Pending'),
+	presented: () => t('projectmanager', 'Presented'),
+	validated: () => t('projectmanager', 'Validated'),
+}
+
+export function clientStatusLabel(status) {
+	return CLIENT_STATUS_LABELS[status] ? CLIENT_STATUS_LABELS[status]() : status
+}

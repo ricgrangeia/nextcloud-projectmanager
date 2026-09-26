@@ -11,8 +11,9 @@ const props = defineProps({
 	<div class="project-view">
 		<nav class="project-tabs">
 			<router-link :to="{ name: 'overview', params: { id } }">{{ t('projectmanager', 'Overview') }}</router-link>
+			<router-link :to="{ name: 'milestones', params: { id } }">{{ t('projectmanager', 'Milestones') }}</router-link>
+			<router-link :to="{ name: 'points', params: { id } }">{{ t('projectmanager', 'Points & Features') }}</router-link>
 			<router-link :to="{ name: 'grid', params: { id } }">{{ t('projectmanager', 'Hours grid') }}</router-link>
-			<router-link :to="{ name: 'features', params: { id } }">{{ t('projectmanager', 'Features') }}</router-link>
 			<router-link :to="{ name: 'tests', params: { id } }">{{ t('projectmanager', 'Tests') }}</router-link>
 			<a class="export-link" :href="api.exportUrl(id)">{{ t('projectmanager', 'Export .xlsx') }}</a>
 		</nav>

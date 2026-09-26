@@ -23,7 +23,7 @@ class TestService {
 		return $this->testEntryMapper->findAllForProject($projectId);
 	}
 
-	public function create(int $projectId, string $userId, string $area, string $profile, string $scenario, string $expected, string $status, ?\DateTimeImmutable $testDate, string $notes, int $sortOrder = 0): TestEntry {
+	public function create(int $projectId, string $userId, string $area, string $profile, string $scenario, string $expected, string $status, ?\DateTimeImmutable $testDate, string $notes, int $sortOrder = 0, ?int $pointId = null): TestEntry {
 		$this->projectMapper->find($projectId, $userId);
 		$test = new TestEntry();
 		$test->setProjectId($projectId);
@@ -35,6 +35,7 @@ class TestService {
 		$test->setTestDate($testDate);
 		$test->setNotes($notes);
 		$test->setSortOrder($sortOrder);
+		$test->setPointId($pointId);
 		return $this->testEntryMapper->insert($test);
 	}
 
@@ -42,7 +43,7 @@ class TestService {
 	 * @throws DoesNotExistException
 	 * @throws MultipleObjectsReturnedException
 	 */
-	public function update(int $id, string $userId, array $fields): TestEntry {
+	public function update(int $id, string $userId, array $fields, ?int $pointId = null, bool $pointIdProvided = false): TestEntry {
 		$test = $this->testEntryMapper->find($id);
 		$this->projectMapper->find($test->getProjectId(), $userId);
 
@@ -51,6 +52,9 @@ class TestService {
 				$setter = 'set' . ucfirst($field);
 				$test->$setter($fields[$field]);
 			}
+		}
+		if ($pointIdProvided) {
+			$test->setPointId($pointId);
 		}
 
 		return $this->testEntryMapper->update($test);

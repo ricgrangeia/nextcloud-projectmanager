@@ -8,6 +8,10 @@ use OCP\AppFramework\Db\Entity;
 use OCP\DB\Types;
 
 /**
+ * Kept only so Version1000Date20260926090000 (the Feature→Point data migration)
+ * keeps working on every future install. The Feature concept itself was merged
+ * into Point in 1.3.0 — nothing else in the app reads or writes this table.
+ *
  * @method int getProjectId()
  * @method void setProjectId(int $projectId)
  * @method string getSection()

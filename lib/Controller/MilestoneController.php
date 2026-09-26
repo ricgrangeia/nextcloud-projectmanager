@@ -53,11 +53,25 @@ class MilestoneController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'PUT', url: '/api/milestones/{id}', requirements: ['id' => '\d+'])]
-	public function update(int $id, ?string $name = null, ?string $targetDate = null, bool $targetDateProvided = false, ?string $reachedDate = null, bool $reachedDateProvided = false, ?int $sortOrder = null): DataResponse {
+	public function update(
+		int $id,
+		?string $name = null,
+		?string $targetDate = null,
+		bool $targetDateProvided = false,
+		?string $reachedDate = null,
+		bool $reachedDateProvided = false,
+		?int $sortOrder = null,
+		?string $communicationChannel = null,
+		?string $clientStatus = null,
+		?int $acceptancePct = null,
+	): DataResponse {
 		try {
 			$fields = [
 				'name' => $name,
 				'sortOrder' => $sortOrder,
+				'communicationChannel' => $communicationChannel,
+				'clientStatus' => $clientStatus,
+				'acceptancePct' => $acceptancePct,
 			];
 			if ($targetDateProvided) {
 				$fields['targetDate'] = $targetDate !== null && $targetDate !== '' ? new \DateTimeImmutable($targetDate) : null;

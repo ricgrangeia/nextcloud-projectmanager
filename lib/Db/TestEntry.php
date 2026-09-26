@@ -26,6 +26,8 @@ use OCP\DB\Types;
  * @method void setNotes(?string $notes)
  * @method int getSortOrder()
  * @method void setSortOrder(int $sortOrder)
+ * @method ?int getPointId()
+ * @method void setPointId(?int $pointId)
  */
 class TestEntry extends Entity implements \JsonSerializable {
 	public const STATUS_TO_TEST = 'to_test';
@@ -41,6 +43,7 @@ class TestEntry extends Entity implements \JsonSerializable {
 	protected ?\DateTimeImmutable $testDate = null;
 	protected ?string $notes = '';
 	protected int $sortOrder = 0;
+	protected ?int $pointId = null;
 
 	public function __construct() {
 		$this->addType('projectId', Types::INTEGER);
@@ -52,6 +55,7 @@ class TestEntry extends Entity implements \JsonSerializable {
 		$this->addType('testDate', Types::DATE_IMMUTABLE);
 		$this->addType('notes', Types::TEXT);
 		$this->addType('sortOrder', Types::INTEGER);
+		$this->addType('pointId', Types::BIGINT);
 	}
 
 	public function jsonSerialize(): array {
@@ -66,6 +70,7 @@ class TestEntry extends Entity implements \JsonSerializable {
 			'testDate' => $this->testDate?->format('Y-m-d'),
 			'notes' => $this->notes ?? '',
 			'sortOrder' => $this->sortOrder,
+			'pointId' => $this->pointId,
 		];
 	}
 }

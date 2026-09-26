@@ -13,6 +13,7 @@ const props = defineProps({
 	id: { type: [String, Number], required: true },
 })
 
+const grid = ref(null)
 const tests = ref([])
 const testForm = ref(null)
 const STATUSES = ['to_test', 'passed', 'failed']
@@ -24,10 +25,23 @@ function todayIso() {
 }
 
 async function load() {
-	tests.value = await api.listTests(props.id)
+	const [g, t] = await Promise.all([api.getProject(props.id), api.listTests(props.id)])
+	grid.value = g
+	tests.value = t
 }
 
 watch(() => props.id, load, { immediate: true })
+
+const testsByPoint = computed(() => {
+	const map = {}
+	for (const test of tests.value) {
+		const key = test.pointId ?? 'general'
+		;(map[key] ??= []).push(test)
+	}
+	return map
+})
+
+const generalTests = computed(() => testsByPoint.value.general ?? [])
 
 const counts = computed(() => {
 	const c = { passed: 0, failed: 0, to_test: 0 }
@@ -37,8 +51,8 @@ const counts = computed(() => {
 	return c
 })
 
-function openNewTestForm() {
-	testForm.value = { id: null, area: '', profile: '', scenario: '', expected: '', status: 'to_test', testDate: todayIso(), notes: '' }
+function openNewTestForm(pointId = null) {
+	testForm.value = { id: null, pointId, area: '', profile: '', scenario: '', expected: '', status: 'to_test', testDate: todayIso(), notes: '' }
 }
 
 function openEditTestForm(test) {
@@ -69,6 +83,8 @@ async function submitTestForm() {
 		status: testForm.value.status,
 		testDate: testForm.value.testDate || null,
 		notes: testForm.value.notes,
+		pointId: testForm.value.pointId === '' ? null : testForm.value.pointId,
+		pointIdProvided: true,
 	}
 	if (testForm.value.id === null) {
 		await api.createTest(props.id, payload)
@@ -104,65 +120,83 @@ async function removeTest(id) {
 </script>
 
 <template>
-	<div class="tests-view">
+	<div v-if="grid" class="tests-view">
 		<div class="toolbar">
-			<button type="button" class="link-btn" @click="openNewTestForm">{{ t('projectmanager', '+ Test') }}</button>
 			<span class="counts">
 				{{ t('projectmanager', 'Passed') }}: {{ counts.passed }} ·
 				{{ t('projectmanager', 'Failed') }}: {{ counts.failed }} ·
 				{{ t('projectmanager', 'To test') }}: {{ counts.to_test }}
 			</span>
 		</div>
-		<table class="tests-table">
-			<thead>
-				<tr>
-					<th>ID</th>
-					<th>{{ t('projectmanager', 'Area') }}</th>
-					<th>{{ t('projectmanager', 'Profile') }}</th>
-					<th>{{ t('projectmanager', 'Scenario/Action') }}</th>
-					<th>{{ t('projectmanager', 'Expected result') }}</th>
-					<th>{{ t('projectmanager', 'Status') }}</th>
-					<th>{{ t('projectmanager', 'Date') }}</th>
-					<th>{{ t('projectmanager', 'Notes') }}</th>
-					<th></th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr v-for="test in tests" :key="test.id">
-					<td>{{ test.id }}</td>
-					<td>
-						<EditableCell :model-value="test.area" @save="v => updateField(test, 'area', v)" />
-					</td>
-					<td>
-						<EditableCell :model-value="test.profile" @save="v => updateField(test, 'profile', v)" />
-					</td>
-					<td>
-						<EditableCell :model-value="test.scenario" @save="v => updateField(test, 'scenario', v)" />
-					</td>
-					<td>
-						<EditableCell :model-value="test.expected" @save="v => updateField(test, 'expected', v)" />
-					</td>
-					<td>
-						<select :value="test.status" @change="updateStatus(test, $event.target.value)">
-							<option v-for="s in STATUSES" :key="s" :value="s">{{ statusLabel(s) }}</option>
-						</select>
-						<StatusPill :status="test.status" />
-					</td>
-					<td>{{ test.testDate }}</td>
-					<td>
-						<EditableCell :model-value="test.notes" @save="v => updateField(test, 'notes', v)" />
-					</td>
-					<td class="row-actions">
-						<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Edit')" :title="t('projectmanager', 'Edit')" @click="openEditTestForm(test)">
-							<Pencil :size="16" />
-						</button>
-						<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Delete')" :title="t('projectmanager', 'Delete')" @click="removeTest(test.id)">
-							<Delete :size="16" />
-						</button>
-					</td>
-				</tr>
-			</tbody>
-		</table>
+
+		<div v-for="module in grid.modules" :key="module.id" class="section">
+			<h3>{{ module.code }} — {{ module.name }}</h3>
+			<div v-for="point in module.points" :key="point.id" class="point-block">
+				<div class="point-header">
+					<strong>{{ point.code }}</strong> {{ point.description }}
+					<button type="button" class="link-btn" @click="openNewTestForm(point.id)">{{ t('projectmanager', '+ Test') }}</button>
+				</div>
+				<table v-if="(testsByPoint[point.id] || []).length" class="tests-table">
+					<tbody>
+						<tr v-for="test in testsByPoint[point.id]" :key="test.id">
+							<td class="col-area">
+								<EditableCell :model-value="test.area" @save="v => updateField(test, 'area', v)" />
+							</td>
+							<td>
+								<EditableCell :model-value="test.scenario" @save="v => updateField(test, 'scenario', v)" placeholder="—" />
+							</td>
+							<td>
+								<select :value="test.status" @change="updateStatus(test, $event.target.value)">
+									<option v-for="s in STATUSES" :key="s" :value="s">{{ statusLabel(s) }}</option>
+								</select>
+								<StatusPill :status="test.status" />
+							</td>
+							<td>{{ test.testDate }}</td>
+							<td class="row-actions">
+								<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Edit')" :title="t('projectmanager', 'Edit')" @click="openEditTestForm(test)">
+									<Pencil :size="16" />
+								</button>
+								<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Delete')" :title="t('projectmanager', 'Delete')" @click="removeTest(test.id)">
+									<Delete :size="16" />
+								</button>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="section">
+			<h3>{{ t('projectmanager', 'General') }}</h3>
+			<button type="button" class="link-btn" @click="openNewTestForm(null)">{{ t('projectmanager', '+ Test') }}</button>
+			<table v-if="generalTests.length" class="tests-table">
+				<tbody>
+					<tr v-for="test in generalTests" :key="test.id">
+						<td class="col-area">
+							<EditableCell :model-value="test.area" @save="v => updateField(test, 'area', v)" />
+						</td>
+						<td>
+							<EditableCell :model-value="test.scenario" @save="v => updateField(test, 'scenario', v)" placeholder="—" />
+						</td>
+						<td>
+							<select :value="test.status" @change="updateStatus(test, $event.target.value)">
+								<option v-for="s in STATUSES" :key="s" :value="s">{{ statusLabel(s) }}</option>
+							</select>
+							<StatusPill :status="test.status" />
+						</td>
+						<td>{{ test.testDate }}</td>
+						<td class="row-actions">
+							<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Edit')" :title="t('projectmanager', 'Edit')" @click="openEditTestForm(test)">
+								<Pencil :size="16" />
+							</button>
+							<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Delete')" :title="t('projectmanager', 'Delete')" @click="removeTest(test.id)">
+								<Delete :size="16" />
+							</button>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
 
 		<NcDialog
 			:open="testForm !== null"
@@ -173,6 +207,15 @@ async function removeTest(id) {
 			@update:open="onTestDialogOpenChange"
 			@submit.prevent="submitTestForm">
 			<div v-if="testForm" class="dialog-form">
+				<label class="dialog-field">
+					<span class="dialog-label">{{ t('projectmanager', 'Point') }}</span>
+					<select v-model="testForm.pointId">
+						<option :value="null">{{ t('projectmanager', 'General') }}</option>
+						<optgroup v-for="module in grid.modules" :key="module.id" :label="`${module.code} — ${module.name}`">
+							<option v-for="point in module.points" :key="point.id" :value="point.id">{{ point.code }} — {{ point.description }}</option>
+						</optgroup>
+					</select>
+				</label>
 				<label class="dialog-field">
 					<span class="dialog-label">{{ t('projectmanager', 'Area') }}</span>
 					<input v-model="testForm.area" type="text" autofocus>
@@ -227,22 +270,41 @@ async function removeTest(id) {
 	font-size: 13px;
 }
 
+.section {
+	margin-bottom: 24px;
+}
+
+.section h3 {
+	margin-bottom: 8px;
+}
+
+.point-block {
+	margin: 6px 0 6px 12px;
+}
+
+.point-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	margin-bottom: 4px;
+}
+
 .tests-table {
 	border-collapse: collapse;
 	width: 100%;
 	font-size: 13px;
+	margin-bottom: 8px;
 }
 
-.tests-table th,
 .tests-table td {
 	border: 1px solid var(--color-border);
 	padding: 6px 8px;
 	text-align: left;
 }
 
-.tests-table th {
-	background-color: var(--color-primary-element);
-	color: var(--color-primary-element-text);
+.col-area {
+	width: 160px;
 }
 
 .link-btn {

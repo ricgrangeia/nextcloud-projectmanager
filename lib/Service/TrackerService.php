@@ -101,7 +101,7 @@ class TrackerService {
 
 	// --- Point ----------------------------------------------------------
 
-	public function createPoint(int $moduleId, string $userId, string $code, string $description, ?float $estimateH, string $status, int $sortOrder = 0): Point {
+	public function createPoint(int $moduleId, string $userId, string $code, string $description, ?float $estimateH, string $status, int $sortOrder = 0, string $businessValue = '', string $externalPending = ''): Point {
 		$this->assertModuleOwned($moduleId, $userId);
 		$point = new Point();
 		$point->setModuleId($moduleId);
@@ -110,10 +110,25 @@ class TrackerService {
 		$point->setEstimateH($estimateH);
 		$point->setStatus($status);
 		$point->setSortOrder($sortOrder);
+		$point->setBusinessValue($businessValue);
+		$point->setExternalPending($externalPending);
 		return $this->pointMapper->insert($point);
 	}
 
-	public function updatePoint(int $pointId, string $userId, ?string $code, ?string $description, ?float $estimateH, bool $estimateHProvided, ?string $status, ?int $sortOrder, ?bool $clientVisible = null): Point {
+	public function updatePoint(
+		int $pointId,
+		string $userId,
+		?string $code,
+		?string $description,
+		?float $estimateH,
+		bool $estimateHProvided,
+		?string $status,
+		?int $sortOrder,
+		?string $businessValue = null,
+		?string $externalPending = null,
+		?int $milestoneId = null,
+		bool $milestoneIdProvided = false,
+	): Point {
 		$point = $this->assertPointOwned($pointId, $userId);
 		if ($code !== null) {
 			$point->setCode($code);
@@ -130,8 +145,14 @@ class TrackerService {
 		if ($sortOrder !== null) {
 			$point->setSortOrder($sortOrder);
 		}
-		if ($clientVisible !== null) {
-			$point->setClientVisible($clientVisible);
+		if ($businessValue !== null) {
+			$point->setBusinessValue($businessValue);
+		}
+		if ($externalPending !== null) {
+			$point->setExternalPending($externalPending);
+		}
+		if ($milestoneIdProvided) {
+			$point->setMilestoneId($milestoneId);
 		}
 		return $this->pointMapper->update($point);
 	}
@@ -282,7 +303,9 @@ class TrackerService {
 					'remainingH' => ($r = $this->calc->computeRemainingHours($estimateH, $doneH)) !== null ? round($r, 2) : null,
 					'status' => $point->getStatus(),
 					'sortOrder' => $point->getSortOrder(),
-					'clientVisible' => $point->getClientVisible(),
+					'businessValue' => $point->getBusinessValue() ?? '',
+					'externalPending' => $point->getExternalPending() ?? '',
+					'milestoneId' => $point->getMilestoneId(),
 					'pctByDay' => $pointPctByDay,
 					'leaves' => array_map(static fn (Leaf $l) => [
 						'id' => $l->getId(),

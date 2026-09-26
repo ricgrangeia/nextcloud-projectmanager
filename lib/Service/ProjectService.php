@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OCA\ProjectManager\Service;
 
 use OCA\ProjectManager\Db\DayHoursMapper;
-use OCA\ProjectManager\Db\FeatureMapper;
 use OCA\ProjectManager\Db\LeafMapper;
 use OCA\ProjectManager\Db\MilestoneMapper;
 use OCA\ProjectManager\Db\ModuleMapper;
@@ -23,7 +22,6 @@ class ProjectService {
 		private PointMapper $pointMapper,
 		private LeafMapper $leafMapper,
 		private DayHoursMapper $dayHoursMapper,
-		private FeatureMapper $featureMapper,
 		private TestEntryMapper $testEntryMapper,
 		private MilestoneMapper $milestoneMapper,
 	) {
@@ -124,7 +122,6 @@ class ProjectService {
 		$this->pointMapper->deleteAllForModules($moduleIds);
 		$this->moduleMapper->deleteAllForProject($id);
 		$this->dayHoursMapper->deleteAllForProject($id);
-		$this->featureMapper->deleteAllForProject($id);
 		$this->testEntryMapper->deleteAllForProject($id);
 		$this->milestoneMapper->deleteAllForProject($id);
 

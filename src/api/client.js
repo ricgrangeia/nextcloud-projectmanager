@@ -39,11 +39,6 @@ export default {
 	setDayHours: (projectId, date, hours) => data(axios.put(url(`/api/projects/${projectId}/day-hours/${date}`), { hours })),
 	deleteDayHours: (projectId, date) => data(axios.delete(url(`/api/projects/${projectId}/day-hours/${date}`))),
 
-	listFeatures: (projectId) => data(axios.get(url(`/api/projects/${projectId}/features`))),
-	createFeature: (projectId, payload) => data(axios.post(url(`/api/projects/${projectId}/features`), payload)),
-	updateFeature: (id, payload) => data(axios.put(url(`/api/features/${id}`), payload)),
-	deleteFeature: (id) => data(axios.delete(url(`/api/features/${id}`))),
-
 	listTests: (projectId) => data(axios.get(url(`/api/projects/${projectId}/tests`))),
 	createTest: (projectId, payload) => data(axios.post(url(`/api/projects/${projectId}/tests`), payload)),
 	updateTest: (id, payload) => data(axios.put(url(`/api/tests/${id}`), payload)),

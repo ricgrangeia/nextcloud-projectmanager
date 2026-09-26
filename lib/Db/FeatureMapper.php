@@ -45,4 +45,32 @@ class FeatureMapper extends QBMapper {
 			->where($qb->expr()->eq('project_id', $qb->createNamedParameter($projectId, IQueryBuilder::PARAM_INT)));
 		$qb->executeStatement();
 	}
+
+	/** Whether any Feature rows still exist, kept only for the one-off Feature→Point data migration. */
+	public function hasAny(): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')->from($this->getTableName())->setMaxResults(1);
+		$result = $qb->executeQuery();
+		$row = $result->fetch();
+		$result->closeCursor();
+		return $row !== false;
+	}
+
+	/**
+	 * @return array<int, Feature[]> features grouped by project_id, kept only for the
+	 *         one-off Feature→Point data migration.
+	 */
+	public function findAllGroupedByProject(): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->orderBy('project_id', 'ASC')
+			->addOrderBy('sort_order', 'ASC');
+
+		$grouped = [];
+		foreach ($this->findEntities($qb) as $feature) {
+			$grouped[$feature->getProjectId()][] = $feature;
+		}
+		return $grouped;
+	}
 }

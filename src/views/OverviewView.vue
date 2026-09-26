@@ -1,9 +1,6 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { t } from '@nextcloud/l10n'
-import NcDialog from '@nextcloud/vue/components/NcDialog'
-import Delete from 'vue-material-design-icons/Delete.vue'
-import Star from 'vue-material-design-icons/Star.vue'
 import AlertCircle from 'vue-material-design-icons/AlertCircleOutline.vue'
 import api from '../api/client.js'
 import StatusPill from '../components/StatusPill.vue'
@@ -14,7 +11,6 @@ const props = defineProps({
 })
 
 const overview = ref(null)
-const milestoneForm = ref(null)
 const briefDraft = ref('')
 const waitingDraft = ref('')
 
@@ -50,51 +46,6 @@ async function saveWaiting() {
 	await load()
 }
 
-function openNewMilestoneForm() {
-	milestoneForm.value = { name: '', targetDate: '' }
-}
-
-function cancelMilestoneForm() {
-	milestoneForm.value = null
-}
-
-function onMilestoneDialogOpenChange(isOpen) {
-	if (!isOpen) {
-		milestoneForm.value = null
-	}
-}
-
-async function submitMilestoneForm() {
-	const name = milestoneForm.value.name.trim()
-	if (!name) {
-		return
-	}
-	await api.createMilestone(props.id, { name, targetDate: milestoneForm.value.targetDate || null })
-	milestoneForm.value = null
-	await load()
-}
-
-const milestoneDialogButtons = computed(() => [
-	{ label: t('projectmanager', 'Cancel'), callback: cancelMilestoneForm },
-	{ label: t('projectmanager', 'Save'), type: 'primary', nativeType: 'submit' },
-])
-
-async function toggleMilestoneReached(milestone) {
-	await api.updateMilestone(milestone.id, {
-		reachedDateProvided: true,
-		reachedDate: milestone.reached ? null : new Date().toISOString().slice(0, 10),
-	})
-	await load()
-}
-
-async function deleteMilestone(id) {
-	if (!window.confirm(t('projectmanager', 'Delete this milestone?'))) {
-		return
-	}
-	await api.deleteMilestone(id)
-	await load()
-}
-
 function daysLabel(m) {
 	if (m.daysUntil === null) {
 		return ''
@@ -125,17 +76,13 @@ function daysLabel(m) {
 				</p>
 				<ul class="milestone-list">
 					<li v-for="m in overview.milestones" :key="m.id" :class="{ overdue: m.overdue, reached: m.reached }">
-						<input type="checkbox" :checked="m.reached" @change="toggleMilestoneReached(m)">
 						<span class="milestone-name">{{ m.name }}</span>
 						<span class="milestone-date">{{ fmtDate(m.targetDate) }}</span>
 						<span class="milestone-days">{{ daysLabel(m) }}</span>
-						<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Delete')" @click="deleteMilestone(m.id)">
-							<Delete :size="14" />
-						</button>
 					</li>
 					<li v-if="overview.milestones.length === 0" class="empty-hint">{{ t('projectmanager', 'No milestones yet.') }}</li>
 				</ul>
-				<button type="button" class="link-btn" @click="openNewMilestoneForm">{{ t('projectmanager', '+ Milestone') }}</button>
+				<router-link class="link-btn" :to="{ name: 'milestones', params: { id } }">{{ t('projectmanager', 'Manage milestones') }}</router-link>
 				<hr class="sep">
 				<dl class="stat-list">
 					<div><dt>{{ t('projectmanager', 'Estimated (in scope)') }}</dt><dd>{{ fmtH(overview.summary.estimatedH) }}</dd></div>
@@ -151,9 +98,9 @@ function daysLabel(m) {
 					rows="3"
 					:placeholder="t('projectmanager', 'What is currently blocked on the client\'s side')"
 					@blur="saveWaiting"></textarea>
-				<ul v-if="overview.pendingFeatures.length" class="plain-list">
-					<li v-for="f in overview.pendingFeatures" :key="f.id">
-						<strong>{{ f.name }}</strong> ({{ f.section }}) — {{ f.externalPending }}
+				<ul v-if="overview.pendingPoints.length" class="plain-list">
+					<li v-for="p in overview.pendingPoints" :key="p.id">
+						<strong>{{ p.code }}</strong> {{ p.description }} — {{ p.externalPending }}
 					</li>
 				</ul>
 			</section>
@@ -179,12 +126,12 @@ function daysLabel(m) {
 			</section>
 
 			<section class="card">
-				<h3><Star :size="16" class="star-heading" /> {{ t('projectmanager', 'Client-visible points') }}</h3>
+				<h3>{{ t('projectmanager', 'Presented to client') }}</h3>
 				<ul class="plain-list">
-					<li v-for="p in overview.clientVisiblePoints" :key="p.id">
+					<li v-for="p in overview.presentedPoints" :key="p.id">
 						<StatusPill :status="p.status" /> {{ p.code }} — {{ p.description }}
 					</li>
-					<li v-if="overview.clientVisiblePoints.length === 0" class="empty-hint">{{ t('projectmanager', 'Mark points with the star in the Hours grid to track what the client cares about.') }}</li>
+					<li v-if="overview.presentedPoints.length === 0" class="empty-hint">{{ t('projectmanager', 'Link a point to a milestone in "Points & Features" to track what the client has already seen.') }}</li>
 				</ul>
 			</section>
 
@@ -193,7 +140,7 @@ function daysLabel(m) {
 				<dl class="stat-list">
 					<div><dt>{{ t('projectmanager', 'Failed tests') }}</dt><dd>{{ overview.quality.failedTests.length }}</dd></div>
 					<div><dt>{{ t('projectmanager', 'To test') }}</dt><dd>{{ overview.quality.toTestCount }}</dd></div>
-					<div><dt>{{ t('projectmanager', 'Not started features') }}</dt><dd>{{ overview.quality.notStartedFeatureCount }}</dd></div>
+					<div><dt>{{ t('projectmanager', 'Not started (with business value)') }}</dt><dd>{{ overview.quality.notStartedCount }}</dd></div>
 				</dl>
 				<ul v-if="overview.quality.failedTests.length" class="plain-list">
 					<li v-for="f in overview.quality.failedTests" :key="f.id">{{ f.area }} — {{ f.scenario }}</li>
@@ -209,26 +156,6 @@ function daysLabel(m) {
 					@blur="saveBrief"></textarea>
 			</section>
 		</div>
-
-		<NcDialog
-			:open="milestoneForm !== null"
-			:name="t('projectmanager', '+ Milestone')"
-			is-form
-			size="small"
-			:buttons="milestoneDialogButtons"
-			@update:open="onMilestoneDialogOpenChange"
-			@submit.prevent="submitMilestoneForm">
-			<div v-if="milestoneForm" class="dialog-form">
-				<label class="dialog-field">
-					<span class="dialog-label">{{ t('projectmanager', 'Milestone name') }}</span>
-					<input v-model="milestoneForm.name" type="text" autofocus required>
-				</label>
-				<label class="dialog-field">
-					<span class="dialog-label">{{ t('projectmanager', 'Target date') }}</span>
-					<input v-model="milestoneForm.targetDate" type="date">
-				</label>
-			</div>
-		</NcDialog>
 	</div>
 </template>
 

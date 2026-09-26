@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\ProjectManager\Service;
 
-use OCA\ProjectManager\Db\Feature;
-use OCA\ProjectManager\Db\FeatureMapper;
 use OCA\ProjectManager\Db\Milestone;
 use OCA\ProjectManager\Db\MilestoneMapper;
 use OCA\ProjectManager\Db\TestEntry;
@@ -22,7 +20,6 @@ class OverviewService {
 	public function __construct(
 		private TrackerService $trackerService,
 		private MilestoneMapper $milestoneMapper,
-		private FeatureMapper $featureMapper,
 		private TestEntryMapper $testEntryMapper,
 	) {
 	}
@@ -54,7 +51,7 @@ class OverviewService {
 			static fn ($p) => in_array($p['status'], ['in_progress', 'partial'], true),
 		));
 
-		$clientVisiblePoints = array_values(array_filter($allPoints, static fn ($p) => $p['clientVisible']));
+		$presentedPoints = array_values(array_filter($allPoints, static fn ($p) => $p['milestoneId'] !== null));
 
 		$milestoneDtos = array_map(function (Milestone $m) use ($today) {
 			$reached = $m->getReachedDate() !== null;
@@ -80,17 +77,14 @@ class OverviewService {
 			}
 		}
 
-		$features = $this->featureMapper->findAllForProject($projectId);
-		$pendingFeatures = array_values(array_filter(
-			array_map(static fn (Feature $f) => [
-				'id' => $f->getId(),
-				'section' => $f->getSection(),
-				'name' => $f->getName(),
-				'externalPending' => $f->getExternalPending(),
-			], $features),
-			static fn ($f) => trim((string) $f['externalPending']) !== '',
+		$pendingPoints = array_values(array_filter(
+			$allPoints,
+			static fn ($p) => trim((string) $p['externalPending']) !== '',
 		));
-		$notStartedFeatureCount = count(array_filter($features, static fn (Feature $f) => $f->getStatus() === Feature::STATUS_NOT_STARTED));
+		$notStartedCount = count(array_filter(
+			$allPoints,
+			static fn ($p) => trim((string) $p['businessValue']) !== '' && $p['status'] === 'todo',
+		));
 
 		$tests = $this->testEntryMapper->findAllForProject($projectId);
 		$failedTests = array_values(array_map(static fn (TestEntry $t) => [
@@ -106,14 +100,14 @@ class OverviewService {
 			'milestones' => $milestoneDtos,
 			'nextMilestone' => $nextMilestone,
 			'waitingOnClient' => $grid['project']['waitingOnClient'],
-			'pendingFeatures' => $pendingFeatures,
+			'pendingPoints' => $pendingPoints,
 			'recentLeaves' => $recentLeaves,
 			'inProgressPoints' => $inProgressPoints,
-			'clientVisiblePoints' => $clientVisiblePoints,
+			'presentedPoints' => $presentedPoints,
 			'quality' => [
 				'failedTests' => $failedTests,
 				'toTestCount' => $toTestCount,
-				'notStartedFeatureCount' => $notStartedFeatureCount,
+				'notStartedCount' => $notStartedCount,
 			],
 			'brief' => $grid['project']['brief'],
 		];

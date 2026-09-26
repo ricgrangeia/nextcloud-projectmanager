@@ -20,8 +20,12 @@ use OCP\DB\Types;
  * @method void setStatus(string $status)
  * @method int getSortOrder()
  * @method void setSortOrder(int $sortOrder)
- * @method bool getClientVisible()
- * @method void setClientVisible(bool $clientVisible)
+ * @method ?string getBusinessValue()
+ * @method void setBusinessValue(?string $businessValue)
+ * @method ?string getExternalPending()
+ * @method void setExternalPending(?string $externalPending)
+ * @method ?int getMilestoneId()
+ * @method void setMilestoneId(?int $milestoneId)
  */
 class Point extends Entity implements \JsonSerializable {
 	public const STATUS_TODO = 'todo';
@@ -35,7 +39,9 @@ class Point extends Entity implements \JsonSerializable {
 	protected ?float $estimateH = null;
 	protected string $status = self::STATUS_TODO;
 	protected int $sortOrder = 0;
-	protected bool $clientVisible = false;
+	protected ?string $businessValue = '';
+	protected ?string $externalPending = '';
+	protected ?int $milestoneId = null;
 
 	public function __construct() {
 		$this->addType('moduleId', Types::INTEGER);
@@ -44,7 +50,9 @@ class Point extends Entity implements \JsonSerializable {
 		$this->addType('estimateH', Types::FLOAT);
 		$this->addType('status', Types::STRING);
 		$this->addType('sortOrder', Types::INTEGER);
-		$this->addType('clientVisible', Types::BOOLEAN);
+		$this->addType('businessValue', Types::TEXT);
+		$this->addType('externalPending', Types::TEXT);
+		$this->addType('milestoneId', Types::BIGINT);
 	}
 
 	public function jsonSerialize(): array {
@@ -56,7 +64,9 @@ class Point extends Entity implements \JsonSerializable {
 			'estimateH' => $this->estimateH,
 			'status' => $this->status,
 			'sortOrder' => $this->sortOrder,
-			'clientVisible' => $this->clientVisible,
+			'businessValue' => $this->businessValue ?? '',
+			'externalPending' => $this->externalPending ?? '',
+			'milestoneId' => $this->milestoneId,
 		];
 	}
 }

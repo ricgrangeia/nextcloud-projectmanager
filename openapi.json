@@ -72,7 +72,10 @@
 					"name": { "type": "string" },
 					"targetDate": { "type": "string", "format": "date", "nullable": true },
 					"reachedDate": { "type": "string", "format": "date", "nullable": true, "description": "Set once the milestone is reached" },
-					"sortOrder": { "type": "integer" }
+					"sortOrder": { "type": "integer" },
+					"communicationChannel": { "type": "string", "nullable": true, "enum": ["email", "session", null], "description": "How the client was told about this milestone" },
+					"clientStatus": { "type": "string", "enum": ["pending", "presented", "validated"], "default": "pending" },
+					"acceptancePct": { "type": "integer", "nullable": true, "description": "Perceived client acceptance, 0-100" }
 				}
 			},
 			"Module": {
@@ -96,7 +99,9 @@
 					"estimateH": { "type": "number", "format": "float", "nullable": true, "description": "null means no estimate (typically OTHERS points)" },
 					"status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"] },
 					"sortOrder": { "type": "integer" },
-					"clientVisible": { "type": "boolean", "default": false, "description": "Marks this point as something the client sees/cares about" }
+					"businessValue": { "type": "string", "description": "Business value, when this point is also something sold/promised to the client (formerly the separate \"Feature\" concept)" },
+					"externalPending": { "type": "string", "description": "A dependency on someone else before this point can move forward" },
+					"milestoneId": { "type": "integer", "nullable": true, "description": "The milestone this point was presented to the client in, if any" }
 				}
 			},
 			"Leaf": {
@@ -118,20 +123,6 @@
 					"hours": { "type": "number", "format": "float" }
 				}
 			},
-			"Feature": {
-				"type": "object",
-				"properties": {
-					"id": { "type": "integer" },
-					"projectId": { "type": "integer" },
-					"section": { "type": "string" },
-					"name": { "type": "string" },
-					"pointRef": { "type": "string" },
-					"status": { "type": "string", "enum": ["not_started", "in_progress", "done"] },
-					"businessValue": { "type": "string" },
-					"externalPending": { "type": "string" },
-					"sortOrder": { "type": "integer" }
-				}
-			},
 			"TestEntry": {
 				"type": "object",
 				"properties": {
@@ -144,7 +135,8 @@
 					"status": { "type": "string", "enum": ["to_test", "passed", "failed"] },
 					"testDate": { "type": "string", "format": "date", "nullable": true },
 					"notes": { "type": "string" },
-					"sortOrder": { "type": "integer" }
+					"sortOrder": { "type": "integer" },
+					"pointId": { "type": "integer", "nullable": true, "description": "The point this test validates; null is a general, unscoped test" }
 				}
 			},
 			"PointGrid": {
@@ -382,7 +374,7 @@
 					"content": { "multipart/form-data": { "schema": { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "format": "binary" } } } } }
 				},
 				"responses": {
-					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "clients": { "type": "integer" }, "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "features": { "type": "integer" }, "tests": { "type": "integer" }, "milestones": { "type": "integer" } } } } } },
+					"200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "clients": { "type": "integer" }, "projects": { "type": "integer" }, "modules": { "type": "integer" }, "points": { "type": "integer" }, "leaves": { "type": "integer" }, "dayHours": { "type": "integer" }, "tests": { "type": "integer" }, "milestones": { "type": "integer" } } } } } },
 					"400": { "description": "Missing/invalid file, or malformed backup structure" }
 				}
 			}
@@ -449,11 +441,11 @@
 										"milestones": { "type": "array", "items": { "allOf": [{ "$ref": "#/components/schemas/Milestone" }, { "type": "object", "properties": { "reached": { "type": "boolean" }, "daysUntil": { "type": "integer", "nullable": true }, "overdue": { "type": "boolean" } } }] } },
 										"nextMilestone": { "nullable": true, "allOf": [{ "$ref": "#/components/schemas/Milestone" }] },
 										"waitingOnClient": { "type": "string" },
-										"pendingFeatures": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" }, "section": { "type": "string" }, "name": { "type": "string" }, "externalPending": { "type": "string" } } }, "description": "Features with a non-empty externalPending" },
+										"pendingPoints": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" }, "description": "Points with a non-empty externalPending" },
 										"recentLeaves": { "type": "array", "items": { "type": "object", "description": "Leaf plus pointCode/pointDescription, the 5 most recent by workDate" } },
 										"inProgressPoints": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" } },
-										"clientVisiblePoints": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" } },
-										"quality": { "type": "object", "properties": { "failedTests": { "type": "array", "items": { "type": "object" } }, "toTestCount": { "type": "integer" }, "notStartedFeatureCount": { "type": "integer" } } },
+										"presentedPoints": { "type": "array", "items": { "$ref": "#/components/schemas/PointGrid" }, "description": "Points already presented to the client (milestoneId is set)" },
+										"quality": { "type": "object", "properties": { "failedTests": { "type": "array", "items": { "type": "object" } }, "toTestCount": { "type": "integer" }, "notStartedCount": { "type": "integer", "description": "Points with business value that haven't been started yet" } } },
 										"brief": { "type": "string" }
 									}
 								}
@@ -498,7 +490,10 @@
 									"targetDateProvided": { "type": "boolean", "default": false },
 									"reachedDate": { "type": "string", "format": "date", "nullable": true, "description": "only applied when reachedDateProvided=true" },
 									"reachedDateProvided": { "type": "boolean", "default": false },
-									"sortOrder": { "type": "integer" }
+									"sortOrder": { "type": "integer" },
+									"communicationChannel": { "type": "string", "enum": ["email", "session"] },
+									"clientStatus": { "type": "string", "enum": ["pending", "presented", "validated"] },
+									"acceptancePct": { "type": "integer", "description": "0-100, perceived client acceptance" }
 								}
 							}
 						}
@@ -547,7 +542,7 @@
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "moduleId", "in": "path", "required": true, "schema": { "type": "integer" } }],
 				"requestBody": {
 					"required": true,
-					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["code", "description"], "properties": { "code": { "type": "string" }, "description": { "type": "string" }, "estimateH": { "type": "number", "nullable": true }, "status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"], "default": "todo" }, "sortOrder": { "type": "integer", "default": 0 } } } } }
+					"content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["code", "description"], "properties": { "code": { "type": "string" }, "description": { "type": "string" }, "estimateH": { "type": "number", "nullable": true }, "status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"], "default": "todo" }, "sortOrder": { "type": "integer", "default": 0 }, "businessValue": { "type": "string" }, "externalPending": { "type": "string" } } } } }
 				},
 				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Point" } } } }, "404": { "description": "Module not found" } }
 			}
@@ -555,7 +550,7 @@
 		"/api/v1/points/{id}": {
 			"put": {
 				"operationId": "updatePoint",
-				"summary": "Update a point (code, description, estimate, status, sort order)",
+				"summary": "Update a point (code, description, estimate, status, sort order, business value, milestone)",
 				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
 				"requestBody": {
 					"content": {
@@ -569,7 +564,10 @@
 									"estimateHProvided": { "type": "boolean", "default": false },
 									"status": { "type": "string", "enum": ["todo", "in_progress", "partial", "done"] },
 									"sortOrder": { "type": "integer" },
-									"clientVisible": { "type": "boolean", "description": "Marks this point as something the client sees/cares about" }
+									"businessValue": { "type": "string" },
+									"externalPending": { "type": "string" },
+									"milestoneId": { "type": "integer", "nullable": true, "description": "only applied when milestoneIdProvided=true, so it can be explicitly cleared to null" },
+									"milestoneIdProvided": { "type": "boolean", "default": false }
 								}
 							}
 						}
@@ -634,72 +632,6 @@
 				"responses": { "200": { "description": "OK" }, "404": { "description": "Project not found" } }
 			}
 		},
-		"/api/v1/projects/{projectId}/features": {
-			"get": {
-				"operationId": "listFeatures",
-				"summary": "List the features (proposal vs. status) tracked for a project",
-				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
-				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Feature" } } } } }, "404": { "description": "Project not found" } }
-			},
-			"post": {
-				"operationId": "createFeature",
-				"summary": "Add a feature entry",
-				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "projectId", "in": "path", "required": true, "schema": { "type": "integer" } }],
-				"requestBody": {
-					"required": true,
-					"content": {
-						"application/x-www-form-urlencoded": {
-							"schema": {
-								"type": "object",
-								"required": ["section", "name"],
-								"properties": {
-									"section": { "type": "string" },
-									"name": { "type": "string" },
-									"pointRef": { "type": "string" },
-									"status": { "type": "string", "enum": ["not_started", "in_progress", "done"], "default": "not_started" },
-									"businessValue": { "type": "string" },
-									"externalPending": { "type": "string" },
-									"sortOrder": { "type": "integer", "default": 0 }
-								}
-							}
-						}
-					}
-				},
-				"responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feature" } } } }, "404": { "description": "Project not found" } }
-			}
-		},
-		"/api/v1/features/{id}": {
-			"put": {
-				"operationId": "updateFeature",
-				"summary": "Edit a feature",
-				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
-				"requestBody": {
-					"content": {
-						"application/x-www-form-urlencoded": {
-							"schema": {
-								"type": "object",
-								"properties": {
-									"section": { "type": "string" },
-									"name": { "type": "string" },
-									"pointRef": { "type": "string" },
-									"status": { "type": "string", "enum": ["not_started", "in_progress", "done"] },
-									"businessValue": { "type": "string" },
-									"externalPending": { "type": "string" },
-									"sortOrder": { "type": "integer" }
-								}
-							}
-						}
-					}
-				},
-				"responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feature" } } } }, "404": { "description": "Not found" } }
-			},
-			"delete": {
-				"operationId": "deleteFeature",
-				"summary": "Delete a feature",
-				"parameters": [{ "$ref": "#/components/parameters/OcsApiRequest" }, { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
-				"responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-			}
-		},
 		"/api/v1/projects/{projectId}/tests": {
 			"get": {
 				"operationId": "listTests",
@@ -726,7 +658,8 @@
 									"status": { "type": "string", "enum": ["to_test", "passed", "failed"], "default": "to_test" },
 									"testDate": { "type": "string", "format": "date", "nullable": true },
 									"notes": { "type": "string" },
-									"sortOrder": { "type": "integer", "default": 0 }
+									"sortOrder": { "type": "integer", "default": 0 },
+									"pointId": { "type": "integer", "nullable": true, "description": "The point this test validates; omit for a general, unscoped test" }
 								}
 							}
 						}
@@ -753,7 +686,9 @@
 									"status": { "type": "string", "enum": ["to_test", "passed", "failed"] },
 									"testDate": { "type": "string", "format": "date", "nullable": true },
 									"notes": { "type": "string" },
-									"sortOrder": { "type": "integer" }
+									"sortOrder": { "type": "integer" },
+									"pointId": { "type": "integer", "nullable": true, "description": "only applied when pointIdProvided=true, so it can be explicitly cleared to null" },
+									"pointIdProvided": { "type": "boolean", "default": false }
 								}
 							}
 						}

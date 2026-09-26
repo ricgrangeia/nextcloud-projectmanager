@@ -7,7 +7,6 @@ namespace OCA\ProjectManager\Controller;
 use OCA\ProjectManager\Service\BackupService;
 use OCA\ProjectManager\Service\ClientService;
 use OCA\ProjectManager\Service\ExampleProjectService;
-use OCA\ProjectManager\Service\FeatureService;
 use OCA\ProjectManager\Service\MilestoneService;
 use OCA\ProjectManager\Service\OverviewService;
 use OCA\ProjectManager\Service\ProjectService;
@@ -39,7 +38,6 @@ class ApiController extends OCSController {
 		IRequest $request,
 		private ProjectService $projectService,
 		private TrackerService $trackerService,
-		private FeatureService $featureService,
 		private TestService $testService,
 		private ExampleProjectService $exampleProjectService,
 		private BackupService $backupService,
@@ -83,7 +81,7 @@ class ApiController extends OCSController {
 				['method' => 'GET', 'path' => '/api/v1/projects/{id}', 'summary' => 'Get the fully computed grid: modules, points, leaves, done/remaining hours, summary'],
 				['method' => 'PUT', 'path' => '/api/v1/projects/{id}', 'summary' => 'Rename / change hoursPerWorkingDay, hourlyRate, currencySymbol, showCostInSummary, archived (true to archive, false to restore), clientId (pass clientIdProvided=true to change/clear it), phase (briefing/development/internal_qa/client_review/delivered/closed), brief, waitingOnClient, updateEveryDays'],
 				['method' => 'DELETE', 'path' => '/api/v1/projects/{id}', 'summary' => 'Delete a project and everything under it'],
-				['method' => 'GET', 'path' => '/api/v1/projects/{id}/overview', 'summary' => 'Read this first when resuming a project: phase, milestones (with the next one and days left/overdue), what is waiting on the client, the last things worked on, in-progress points, client-visible points, and quality (failed/to-test tests, not-started features)'],
+				['method' => 'GET', 'path' => '/api/v1/projects/{id}/overview', 'summary' => 'Read this first when resuming a project: phase, milestones (with the next one and days left/overdue), what is waiting on the client, the last things worked on, in-progress points, points already presented to the client, and quality (failed/to-test tests, not-started points with business value)'],
 				['method' => 'GET', 'path' => '/api/v1/clients', 'summary' => 'List your clients'],
 				['method' => 'POST', 'path' => '/api/v1/clients', 'summary' => 'Create a client (name)'],
 				['method' => 'GET', 'path' => '/api/v1/clients/{id}', 'summary' => 'Get a client with its aggregated summary (estimated/done/remaining hours and cost, summed across all its projects) and a per-project breakdown'],
@@ -97,27 +95,23 @@ class ApiController extends OCSController {
 				['method' => 'PUT', 'path' => '/api/v1/modules/{id}', 'summary' => 'Update a module'],
 				['method' => 'DELETE', 'path' => '/api/v1/modules/{id}', 'summary' => 'Delete a module and its points/leaves'],
 				['method' => 'POST', 'path' => '/api/v1/modules/{moduleId}/points', 'summary' => 'Create a point (code, description, estimateH, status)'],
-				['method' => 'PUT', 'path' => '/api/v1/points/{id}', 'summary' => 'Update a point (pass estimateHProvided=true to change/clear estimateH); clientVisible marks it as something the client cares about, surfaced in the project overview'],
+				['method' => 'PUT', 'path' => '/api/v1/points/{id}', 'summary' => 'Update a point (pass estimateHProvided=true to change/clear estimateH). businessValue/externalPending are the former "Feature" fields — set them when a point is also something sold/promised to the client. milestoneId (pass milestoneIdProvided=true to change/clear it) records which milestone the point was presented to the client in'],
 				['method' => 'DELETE', 'path' => '/api/v1/points/{id}', 'summary' => 'Delete a point and its leaves'],
 				['method' => 'POST', 'path' => '/api/v1/points/{pointId}/leaves', 'summary' => 'Log work done on a point on a given day (description, workDate)'],
 				['method' => 'PUT', 'path' => '/api/v1/leaves/{id}', 'summary' => 'Update a leaf'],
 				['method' => 'DELETE', 'path' => '/api/v1/leaves/{id}', 'summary' => 'Delete a leaf'],
 				['method' => 'PUT', 'path' => '/api/v1/projects/{projectId}/day-hours/{date}', 'summary' => 'Set actual hours worked on a day (date in the URL as YYYY-MM-DD, body param "hours")'],
 				['method' => 'DELETE', 'path' => '/api/v1/projects/{projectId}/day-hours/{date}', 'summary' => 'Remove the hours entry for a day'],
-				['method' => 'GET', 'path' => '/api/v1/projects/{projectId}/features', 'summary' => 'List features'],
-				['method' => 'POST', 'path' => '/api/v1/projects/{projectId}/features', 'summary' => 'Create a feature (section, name, pointRef, status, businessValue, externalPending)'],
-				['method' => 'PUT', 'path' => '/api/v1/features/{id}', 'summary' => 'Update a feature'],
-				['method' => 'DELETE', 'path' => '/api/v1/features/{id}', 'summary' => 'Delete a feature'],
 				['method' => 'GET', 'path' => '/api/v1/projects/{projectId}/tests', 'summary' => 'List test log entries'],
-				['method' => 'POST', 'path' => '/api/v1/projects/{projectId}/tests', 'summary' => 'Create a test entry (area, profile, scenario, expected, status, testDate, notes)'],
-				['method' => 'PUT', 'path' => '/api/v1/tests/{id}', 'summary' => 'Update a test entry'],
+				['method' => 'POST', 'path' => '/api/v1/projects/{projectId}/tests', 'summary' => 'Create a test entry (area, profile, scenario, expected, status, testDate, notes, pointId optional)'],
+				['method' => 'PUT', 'path' => '/api/v1/tests/{id}', 'summary' => 'Update a test entry (pass pointIdProvided=true to change/clear pointId)'],
 				['method' => 'DELETE', 'path' => '/api/v1/tests/{id}', 'summary' => 'Delete a test entry'],
 				['method' => 'GET', 'path' => '/api/v1/backup/export', 'summary' => 'Download a JSON snapshot of every project you own (for backup / server migration)'],
 				['method' => 'POST', 'path' => '/api/v1/backup/import', 'summary' => 'Restore from a backup JSON file (multipart/form-data, field name "file"). Always creates new projects.'],
 			],
 			'workflows' => [
-				'resumeProject' => 'Call GET /api/v1/projects/{id}/overview first. It answers: what phase is this in, what is the next milestone and is it overdue, what is the client waiting on from us, what did we last work on, what is in progress, which client-visible points are still to show, and any quality issues (failed tests, not-started features).',
-				'logSessionFromNotes' => 'When the user pastes an email or meeting notes about a project: summarize what was discussed, note which points/features were mentioned, and propose an update to waitingOnClient or a new milestone via PUT /api/v1/projects/{id} or POST /api/v1/projects/{id}/milestones — always show the proposal to the user before writing.',
+				'resumeProject' => 'Call GET /api/v1/projects/{id}/overview first. It answers: what phase is this in, what is the next milestone and is it overdue, what is the client waiting on from us, what did we last work on, what is in progress, which points were already presented to the client, and any quality issues (failed tests, not-started points with business value).',
+				'logSessionFromNotes' => 'When the user pastes an email or meeting notes about a project: summarize what was discussed, note which points were mentioned, and propose an update to waitingOnClient or a new milestone via PUT /api/v1/projects/{id} or POST /api/v1/projects/{id}/milestones — always show the proposal to the user before writing.',
 				'milestoneReached' => 'When the user says a milestone was reached, PUT /api/v1/milestones/{id} with reachedDate=today (reachedDateProvided=true), then remind the user to send the client a short update (even just screenshots) so they feel kept in the loop — this app does not send email itself.',
 			],
 		]);
@@ -254,9 +248,20 @@ class ApiController extends OCSController {
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'PUT', url: '/api/v1/milestones/{id}', requirements: ['id' => '\d+'])]
-	public function updateMilestone(int $id, ?string $name = null, ?string $targetDate = null, bool $targetDateProvided = false, ?string $reachedDate = null, bool $reachedDateProvided = false, ?int $sortOrder = null): DataResponse {
+	public function updateMilestone(
+		int $id,
+		?string $name = null,
+		?string $targetDate = null,
+		bool $targetDateProvided = false,
+		?string $reachedDate = null,
+		bool $reachedDateProvided = false,
+		?int $sortOrder = null,
+		?string $communicationChannel = null,
+		?string $clientStatus = null,
+		?int $acceptancePct = null,
+	): DataResponse {
 		try {
-			$fields = ['name' => $name, 'sortOrder' => $sortOrder];
+			$fields = ['name' => $name, 'sortOrder' => $sortOrder, 'communicationChannel' => $communicationChannel, 'clientStatus' => $clientStatus, 'acceptancePct' => $acceptancePct];
 			if ($targetDateProvided) {
 				$fields['targetDate'] = $targetDate !== null && $targetDate !== '' ? new \DateTimeImmutable($targetDate) : null;
 			}
@@ -370,9 +375,9 @@ class ApiController extends OCSController {
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/modules/{moduleId}/points', requirements: ['moduleId' => '\d+'])]
-	public function createPoint(int $moduleId, string $code, string $description, ?float $estimateH = null, string $status = 'todo', int $sortOrder = 0): DataResponse {
+	public function createPoint(int $moduleId, string $code, string $description, ?float $estimateH = null, string $status = 'todo', int $sortOrder = 0, string $businessValue = '', string $externalPending = ''): DataResponse {
 		try {
-			return new DataResponse($this->trackerService->createPoint($moduleId, $this->getUserId(), $code, $description, $estimateH, $status, $sortOrder), Http::STATUS_CREATED);
+			return new DataResponse($this->trackerService->createPoint($moduleId, $this->getUserId(), $code, $description, $estimateH, $status, $sortOrder, $businessValue, $externalPending), Http::STATUS_CREATED);
 		} catch (DoesNotExistException) {
 			return $this->notFound();
 		}
@@ -380,9 +385,21 @@ class ApiController extends OCSController {
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'PUT', url: '/api/v1/points/{id}', requirements: ['id' => '\d+'])]
-	public function updatePoint(int $id, ?string $code = null, ?string $description = null, ?float $estimateH = null, bool $estimateHProvided = false, ?string $status = null, ?int $sortOrder = null, ?bool $clientVisible = null): DataResponse {
+	public function updatePoint(
+		int $id,
+		?string $code = null,
+		?string $description = null,
+		?float $estimateH = null,
+		bool $estimateHProvided = false,
+		?string $status = null,
+		?int $sortOrder = null,
+		?string $businessValue = null,
+		?string $externalPending = null,
+		?int $milestoneId = null,
+		bool $milestoneIdProvided = false,
+	): DataResponse {
 		try {
-			return new DataResponse($this->trackerService->updatePoint($id, $this->getUserId(), $code, $description, $estimateH, $estimateHProvided, $status, $sortOrder, $clientVisible));
+			return new DataResponse($this->trackerService->updatePoint($id, $this->getUserId(), $code, $description, $estimateH, $estimateHProvided, $status, $sortOrder, $businessValue, $externalPending, $milestoneId, $milestoneIdProvided));
 		} catch (DoesNotExistException) {
 			return $this->notFound();
 		}
@@ -460,49 +477,6 @@ class ApiController extends OCSController {
 		}
 	}
 
-	// --- Features -----------------------------------------------------------
-
-	#[NoAdminRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/projects/{projectId}/features', requirements: ['projectId' => '\d+'])]
-	public function listFeatures(int $projectId): DataResponse {
-		try {
-			return new DataResponse($this->featureService->findAll($projectId, $this->getUserId()));
-		} catch (DoesNotExistException) {
-			return $this->notFound();
-		}
-	}
-
-	#[NoAdminRequired]
-	#[ApiRoute(verb: 'POST', url: '/api/v1/projects/{projectId}/features', requirements: ['projectId' => '\d+'])]
-	public function createFeature(int $projectId, string $section, string $name, string $pointRef = '', string $status = 'not_started', string $businessValue = '', string $externalPending = '', int $sortOrder = 0): DataResponse {
-		try {
-			return new DataResponse($this->featureService->create($projectId, $this->getUserId(), $section, $name, $pointRef, $status, $businessValue, $externalPending, $sortOrder), Http::STATUS_CREATED);
-		} catch (DoesNotExistException) {
-			return $this->notFound();
-		}
-	}
-
-	#[NoAdminRequired]
-	#[ApiRoute(verb: 'PUT', url: '/api/v1/features/{id}', requirements: ['id' => '\d+'])]
-	public function updateFeature(int $id, ?string $section = null, ?string $name = null, ?string $pointRef = null, ?string $status = null, ?string $businessValue = null, ?string $externalPending = null, ?int $sortOrder = null): DataResponse {
-		try {
-			return new DataResponse($this->featureService->update($id, $this->getUserId(), compact('section', 'name', 'pointRef', 'status', 'businessValue', 'externalPending', 'sortOrder')));
-		} catch (DoesNotExistException) {
-			return $this->notFound();
-		}
-	}
-
-	#[NoAdminRequired]
-	#[ApiRoute(verb: 'DELETE', url: '/api/v1/features/{id}', requirements: ['id' => '\d+'])]
-	public function deleteFeature(int $id): DataResponse {
-		try {
-			$this->featureService->delete($id, $this->getUserId());
-			return new DataResponse([]);
-		} catch (DoesNotExistException) {
-			return $this->notFound();
-		}
-	}
-
 	// --- Tests --------------------------------------------------------------
 
 	#[NoAdminRequired]
@@ -517,10 +491,10 @@ class ApiController extends OCSController {
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/projects/{projectId}/tests', requirements: ['projectId' => '\d+'])]
-	public function createTest(int $projectId, string $area, string $profile = '', string $scenario = '', string $expected = '', string $status = 'to_test', ?string $testDate = null, string $notes = '', int $sortOrder = 0): DataResponse {
+	public function createTest(int $projectId, string $area, string $profile = '', string $scenario = '', string $expected = '', string $status = 'to_test', ?string $testDate = null, string $notes = '', int $sortOrder = 0, ?int $pointId = null): DataResponse {
 		try {
 			$date = $testDate !== null ? new \DateTimeImmutable($testDate) : null;
-			return new DataResponse($this->testService->create($projectId, $this->getUserId(), $area, $profile, $scenario, $expected, $status, $date, $notes, $sortOrder), Http::STATUS_CREATED);
+			return new DataResponse($this->testService->create($projectId, $this->getUserId(), $area, $profile, $scenario, $expected, $status, $date, $notes, $sortOrder, $pointId), Http::STATUS_CREATED);
 		} catch (DoesNotExistException) {
 			return $this->notFound();
 		} catch (\Exception) {
@@ -530,12 +504,12 @@ class ApiController extends OCSController {
 
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'PUT', url: '/api/v1/tests/{id}', requirements: ['id' => '\d+'])]
-	public function updateTest(int $id, ?string $area = null, ?string $profile = null, ?string $scenario = null, ?string $expected = null, ?string $status = null, ?string $testDate = null, ?string $notes = null, ?int $sortOrder = null): DataResponse {
+	public function updateTest(int $id, ?string $area = null, ?string $profile = null, ?string $scenario = null, ?string $expected = null, ?string $status = null, ?string $testDate = null, ?string $notes = null, ?int $sortOrder = null, ?int $pointId = null, bool $pointIdProvided = false): DataResponse {
 		try {
 			$testDateValue = $testDate !== null ? new \DateTimeImmutable($testDate) : null;
 			$fields = compact('area', 'profile', 'scenario', 'expected', 'status', 'notes', 'sortOrder');
 			$fields['testDate'] = $testDateValue;
-			return new DataResponse($this->testService->update($id, $this->getUserId(), $fields));
+			return new DataResponse($this->testService->update($id, $this->getUserId(), $fields, $pointId, $pointIdProvided));
 		} catch (DoesNotExistException) {
 			return $this->notFound();
 		} catch (\Exception) {

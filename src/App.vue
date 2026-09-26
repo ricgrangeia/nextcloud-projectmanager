@@ -186,11 +186,14 @@ function openProjectSettings(project) {
 						<h4>{{ t('projectmanager', 'Summary') }}</h4>
 						<p>{{ t('projectmanager', 'The Summary card shows Estimated, Done and Remaining totals in hours and days (1 day = the project\'s hours-per-working-day, set in Project settings — hover a project in the sidebar and click its gear icon).') }}</p>
 
-						<h4>{{ t('projectmanager', 'Features') }}</h4>
-						<p>{{ t('projectmanager', 'The Features tab lists what was sold or proposed to the client, tracked against its current status. "Point" is an optional reference to a related Point code — it doesn\'t affect any calculation. "External pending" is for dependencies on someone else.') }}</p>
+						<h4>{{ t('projectmanager', 'Points & Features') }}</h4>
+						<p>{{ t('projectmanager', 'Sections and Points are created and edited here — the Hours grid only logs hours and work against them. A Point can also carry a business value and an external pending dependency, for when it\'s also something sold or promised to the client.') }}</p>
+
+						<h4>{{ t('projectmanager', 'Milestones') }}</h4>
+						<p>{{ t('projectmanager', 'Track key moments with the client: a target date, how it was communicated (email or session), whether the client has validated it, and a perceived acceptance percentage. Link a Point to a milestone to record when it was presented.') }}</p>
 
 						<h4>{{ t('projectmanager', 'Tests') }}</h4>
-						<p>{{ t('projectmanager', 'The Tests tab is a validation log: one row per scenario you tested, with the expected result and its outcome — use it to document what was checked before delivering.') }}</p>
+						<p>{{ t('projectmanager', 'The Tests tab is a validation log grouped by Section and Point: one row per scenario you tested, with the expected result and its outcome — use it to document what was checked before delivering.') }}</p>
 
 						<h4>{{ t('projectmanager', 'Cost (optional)') }}</h4>
 						<p>{{ t('projectmanager', 'In Project settings you can set an hourly rate and currency symbol; enabling "Show cost in the summary" adds a cost column computed as hours × rate.') }}</p>

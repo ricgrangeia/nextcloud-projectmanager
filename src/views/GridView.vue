@@ -7,13 +7,11 @@ import Pencil from 'vue-material-design-icons/Pencil.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
 import ChevronDown from 'vue-material-design-icons/ChevronDown.vue'
 import ChevronRight from 'vue-material-design-icons/ChevronRight.vue'
-import Star from 'vue-material-design-icons/Star.vue'
-import StarOutline from 'vue-material-design-icons/StarOutline.vue'
 import api from '../api/client.js'
 import StatusPill from '../components/StatusPill.vue'
 import EditableCell from '../components/EditableCell.vue'
 import BurndownChart from '../components/BurndownChart.vue'
-import { statusLabel, phaseLabel } from '../utils/statusLabels.js'
+import { phaseLabel } from '../utils/statusLabels.js'
 import { state, loadProjects } from '../store/index.js'
 
 const props = defineProps({
@@ -27,12 +25,9 @@ const grid = ref(null)
 const summaryCollapsed = ref(false)
 const newDay = ref('')
 const newDayHours = ref(7)
-const moduleForm = ref(null)
-const pointForm = ref(null)
 const settingsForm = ref(null)
 const leafForm = ref(null)
 
-const POINT_STATUSES = ['todo', 'in_progress', 'partial', 'done']
 const PHASES = ['briefing', 'development', 'internal_qa', 'client_review', 'delivered', 'closed']
 
 function todayIso() {
@@ -141,7 +136,7 @@ async function toggleArchiveFromSettings() {
 }
 
 async function deleteProjectFromSettings() {
-	if (!window.confirm(t('projectmanager', 'Delete this project and everything in it — modules, points, leaves, day hours, features and tests? This cannot be undone.'))) {
+	if (!window.confirm(t('projectmanager', 'Delete this project and everything in it — modules, points, leaves, day hours and tests? This cannot be undone.'))) {
 		return
 	}
 	await api.deleteProject(props.id)
@@ -208,123 +203,9 @@ async function deleteDay(day) {
 	await load()
 }
 
-function openNewModuleForm() {
-	moduleForm.value = { id: null, code: '', name: '', inEstimate: true }
-}
-
-function openEditModuleForm(module) {
-	moduleForm.value = { id: module.id, code: module.code, name: module.name, inEstimate: module.inEstimate }
-}
-
-function cancelModuleForm() {
-	moduleForm.value = null
-}
-
-function onModuleDialogOpenChange(isOpen) {
-	if (!isOpen) {
-		moduleForm.value = null
-	}
-}
-
-async function submitModuleForm() {
-	const name = moduleForm.value.name.trim()
-	if (!name) {
-		window.alert(t('projectmanager', 'Please name the module.'))
-		return
-	}
-	const code = moduleForm.value.code.trim() || name.slice(0, 4).toUpperCase()
-	if (moduleForm.value.id === null) {
-		await api.createModule(props.id, { code, name, inEstimate: moduleForm.value.inEstimate, sortOrder: grid.value?.modules.length ?? 0 })
-	} else {
-		await api.updateModule(moduleForm.value.id, { code, name, inEstimate: moduleForm.value.inEstimate })
-	}
-	moduleForm.value = null
-	await load()
-}
-
-const moduleDialogButtons = computed(() => [
-	{ label: t('projectmanager', 'Cancel'), callback: cancelModuleForm },
-	{ label: t('projectmanager', 'Save'), type: 'primary', nativeType: 'submit' },
-])
-
-async function deleteModule(moduleId) {
-	if (!window.confirm(t('projectmanager', 'Delete this module and all its points and leaves?'))) {
-		return
-	}
-	await api.deleteModule(moduleId)
-	await load()
-}
-
-async function updateModuleField(module, field, value) {
-	await api.updateModule(module.id, { [field]: value })
-	await load()
-}
-
-function openNewPointForm(moduleId) {
-	pointForm.value = { id: null, moduleId, code: '', description: '', estimateH: '' }
-}
-
-function openEditPointForm(point) {
-	pointForm.value = { id: point.id, moduleId: point.moduleId, code: point.code, description: point.description, estimateH: point.estimateH ?? '' }
-}
-
-function cancelPointForm() {
-	pointForm.value = null
-}
-
-function onPointDialogOpenChange(isOpen) {
-	if (!isOpen) {
-		pointForm.value = null
-	}
-}
-
-function findModule(moduleId) {
-	return (grid.value?.modules ?? []).find((m) => m.id === moduleId) ?? null
-}
-
-async function submitPointForm() {
-	const description = pointForm.value.description.trim()
-	if (!description) {
-		window.alert(t('projectmanager', 'Please describe the point.'))
-		return
-	}
-	const estimateStr = String(pointForm.value.estimateH).trim()
-	const estimateH = estimateStr === '' ? null : Number(estimateStr)
-	const code = pointForm.value.code.trim()
-	if (pointForm.value.id === null) {
-		const currentCount = findModule(pointForm.value.moduleId)?.points.length ?? 0
-		await api.createPoint(pointForm.value.moduleId, { code, description, estimateH, status: 'todo', sortOrder: currentCount })
-	} else {
-		await api.updatePoint(pointForm.value.id, { code, description, estimateH, estimateHProvided: true })
-	}
-	pointForm.value = null
-	await load()
-}
-
-const pointDialogButtons = computed(() => [
-	{ label: t('projectmanager', 'Cancel'), callback: cancelPointForm },
-	{ label: t('projectmanager', 'Save'), type: 'primary', nativeType: 'submit' },
-])
-
-async function updatePointStatus(point, status) {
-	await api.updatePoint(point.id, { status })
-	await load()
-}
-
-async function updatePointField(point, field, value) {
-	await api.updatePoint(point.id, { [field]: value })
-}
-
-async function toggleClientVisible(point) {
-	await api.updatePoint(point.id, { clientVisible: !point.clientVisible })
-	await load()
-}
-
-async function deletePoint(pointId) {
-	if (!window.confirm(t('projectmanager', 'Delete this point and all its leaves?'))) {
-		return
-	}
-	await api.deletePoint(pointId)
+async function updatePointEstimate(point, value) {
+	const estimateH = String(value).trim() === '' ? null : Number(value)
+	await api.updatePoint(point.id, { estimateH, estimateHProvided: true })
 	await load()
 }
 
@@ -396,6 +277,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 
 <template>
 	<div v-if="grid" class="grid-view">
+		<p class="edit-hint">{{ t('projectmanager', 'Sections, points and their status are managed in the "Points & Features" tab. This grid is for logging hours and work.') }}</p>
 		<div class="grid-scroll" :class="{ 'grid-scroll-expanded': summaryCollapsed }">
 			<table class="tracker-table">
 				<thead>
@@ -443,46 +325,23 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 					<template v-for="module in grid.modules" :key="module.id">
 						<tr class="module-row">
 							<td class="col-point"></td>
-							<td class="col-module">
-								<EditableCell :model-value="module.code" @save="v => updateModuleField(module, 'code', v)" />
-							</td>
+							<td class="col-module">{{ module.code }}</td>
 							<td class="col-desc">
-								<EditableCell :model-value="module.name" @save="v => updateModuleField(module, 'name', v)" />
+								{{ module.name }}
 								<span v-if="!module.inEstimate" class="others-badge">{{ t('projectmanager', 'OTHERS') }}</span>
 							</td>
 							<td class="col-num col-num-1">{{ fmtH(module.estimateH) }}</td>
 							<td class="col-num col-num-2">{{ fmtH(module.doneH) }}</td>
 							<td class="col-num col-num-3">{{ fmtH(module.remainingH) }}</td>
-							<td class="row-actions col-status">
-								<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Edit')" :title="t('projectmanager', 'Edit')" @click="openEditModuleForm(module)">
-									<Pencil :size="16" />
-								</button>
-								<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Delete')" :title="t('projectmanager', 'Delete')" @click="deleteModule(module.id)">
-									<Delete :size="16" />
-								</button>
-							</td>
+							<td class="col-status"></td>
 							<td v-for="day in dayHeaders" :key="day" class="col-day">{{ fmtPct(module.pctByDay[day]) }}</td>
 							<td></td>
 						</tr>
 						<template v-for="point in module.points" :key="point.id">
 							<tr class="point-row">
-								<td class="col-point">
-									<button
-										type="button"
-										class="icon-btn star-btn"
-										:class="{ 'star-btn--active': point.clientVisible }"
-										:aria-label="t('projectmanager', 'Mark as client-visible')"
-										:title="t('projectmanager', 'Mark as client-visible')"
-										@click="toggleClientVisible(point)">
-										<Star v-if="point.clientVisible" :size="14" />
-										<StarOutline v-else :size="14" />
-									</button>
-									<EditableCell :model-value="point.code" @save="v => updatePointField(point, 'code', v)" />
-								</td>
+								<td class="col-point">{{ point.code }}</td>
 								<td class="col-module"></td>
-								<td class="col-desc">
-									<EditableCell :model-value="point.description" @save="v => updatePointField(point, 'description', v)" />
-								</td>
+								<td class="col-desc">{{ point.description }}</td>
 								<td class="col-num col-num-1">
 									<input
 										type="number"
@@ -494,19 +353,10 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 								<td class="col-num col-num-2">{{ fmtH(point.doneH) }}</td>
 								<td class="col-num col-num-3">{{ fmtH(point.remainingH) }}</td>
 								<td class="col-status">
-									<select :value="point.status" @change="updatePointStatus(point, $event.target.value)">
-										<option v-for="s in POINT_STATUSES" :key="s" :value="s">{{ statusLabel(s) }}</option>
-									</select>
 									<StatusPill :status="point.status" />
 								</td>
 								<td v-for="day in dayHeaders" :key="day" class="col-day">{{ fmtPct(point.pctByDay[day]) }}</td>
 								<td class="row-actions">
-									<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Edit')" :title="t('projectmanager', 'Edit')" @click="openEditPointForm(point)">
-										<Pencil :size="16" />
-									</button>
-									<button type="button" class="icon-btn" :aria-label="t('projectmanager', 'Delete')" :title="t('projectmanager', 'Delete')" @click="deletePoint(point.id)">
-										<Delete :size="16" />
-									</button>
 									<button type="button" class="link-btn" @click="openNewLeafForm(point.id)">{{ t('projectmanager', '+ Leaf') }}</button>
 								</td>
 							</tr>
@@ -534,18 +384,7 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 								</td>
 							</tr>
 						</template>
-						<tr class="add-point-row">
-							<td colspan="7">
-								<button type="button" class="link-btn" @click="openNewPointForm(module.id)">{{ t('projectmanager', '+ Point') }}</button>
-							</td>
-							<td :colspan="dayHeaders.length + 1"></td>
-						</tr>
 					</template>
-					<tr class="add-module-row">
-						<td :colspan="7 + dayHeaders.length + 1">
-							<button type="button" class="link-btn" @click="openNewModuleForm">{{ t('projectmanager', '+ Module') }}</button>
-						</td>
-					</tr>
 					<tr class="total-row">
 						<td class="col-point"></td>
 						<td class="col-module"></td>
@@ -626,56 +465,6 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 			</div>
 		</div>
 	</div>
-	<NcDialog
-		:open="moduleForm !== null"
-		:name="moduleForm?.id === null ? t('projectmanager', 'New module') : t('projectmanager', 'Edit module')"
-		is-form
-		size="small"
-		:buttons="moduleDialogButtons"
-		@update:open="onModuleDialogOpenChange"
-		@submit.prevent="submitModuleForm">
-		<div v-if="moduleForm" class="dialog-form">
-			<label class="dialog-field">
-				<span class="dialog-label">{{ t('projectmanager', 'Module name (e.g. Structure)') }}</span>
-				<input v-model="moduleForm.name" type="text" autofocus>
-			</label>
-			<label class="dialog-field">
-				<span class="dialog-label">{{ t('projectmanager', 'Module code (e.g. P1)') }}</span>
-				<input v-model="moduleForm.code" type="text">
-			</label>
-			<label class="dialog-field dialog-field-checkbox">
-				<input v-model="moduleForm.inEstimate" type="checkbox">
-				<span>{{ t('projectmanager', 'Count towards the estimate') }}</span>
-			</label>
-			<p class="dialog-hint">
-				{{ t('projectmanager', 'Uncheck this for work that falls outside what was originally planned — extra requests, bug fixes, anything not part of the initial scope. It will be labelled OTHERS and its hours are tracked separately from the estimate.') }}
-			</p>
-		</div>
-	</NcDialog>
-
-	<NcDialog
-		:open="pointForm !== null"
-		:name="pointForm?.id === null ? t('projectmanager', 'New point') : t('projectmanager', 'Edit point')"
-		is-form
-		size="small"
-		:buttons="pointDialogButtons"
-		@update:open="onPointDialogOpenChange"
-		@submit.prevent="submitPointForm">
-		<div v-if="pointForm" class="dialog-form">
-			<label class="dialog-field">
-				<span class="dialog-label">{{ t('projectmanager', 'Point description') }}</span>
-				<textarea v-model="pointForm.description" rows="3" autofocus></textarea>
-			</label>
-			<label class="dialog-field">
-				<span class="dialog-label">{{ t('projectmanager', 'Point code (e.g. P1.1)') }}</span>
-				<input v-model="pointForm.code" type="text">
-			</label>
-			<label class="dialog-field">
-				<span class="dialog-label">{{ t('projectmanager', 'Estimate in hours (leave empty for none)') }}</span>
-				<input v-model="pointForm.estimateH" type="number" step="0.5">
-			</label>
-		</div>
-	</NcDialog>
 
 	<NcDialog
 		:open="leafForm !== null"
@@ -767,6 +556,12 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	box-sizing: border-box;
 	height: 100%;
 	overflow-y: auto;
+}
+
+.edit-hint {
+	margin: 0 0 12px;
+	font-size: 12px;
+	color: var(--color-text-maxcontrast);
 }
 
 .grid-scroll {
@@ -897,16 +692,6 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	z-index: 3;
 }
 
-
-/* "+ Point" spans columns 1-7 in one cell; pinning its left edge keeps the
-   whole frozen-width block (and the button) in view while scrolling. */
-.add-point-row td:first-child {
-	position: sticky;
-	left: 0;
-	z-index: 1;
-	background-color: inherit;
-}
-
 /* Module group rows: a subtly different surface + accent stripe, instead of
    a flat fill color, so it stays legible in both light and dark themes. */
 .module-row {
@@ -998,17 +783,6 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 	color: var(--color-main-text);
 }
 
-.star-btn {
-	width: 16px;
-	height: 16px;
-	margin-right: 2px;
-	color: var(--color-text-maxcontrast);
-}
-
-.star-btn--active {
-	color: #dcb400;
-}
-
 .day-header {
 	position: relative;
 	padding-top: 8px;
@@ -1051,20 +825,6 @@ const dayHeaders = computed(() => grid.value?.days ?? [])
 .hours-unit {
 	color: var(--color-text-maxcontrast);
 	margin-left: 2px;
-}
-
-.leaf-form-row {
-	background-color: var(--color-background-hover);
-}
-
-.new-leaf-desc {
-	width: 100%;
-	min-width: 200px;
-	box-sizing: border-box;
-}
-
-.new-leaf-date {
-	width: 150px;
 }
 
 .new-day-input {

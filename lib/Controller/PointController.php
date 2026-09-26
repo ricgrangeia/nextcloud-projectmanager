@@ -30,9 +30,9 @@ class PointController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/api/modules/{moduleId}/points', requirements: ['moduleId' => '\d+'])]
-	public function create(int $moduleId, string $code, string $description, ?float $estimateH = null, string $status = 'todo', int $sortOrder = 0): DataResponse {
+	public function create(int $moduleId, string $code, string $description, ?float $estimateH = null, string $status = 'todo', int $sortOrder = 0, string $businessValue = '', string $externalPending = ''): DataResponse {
 		try {
-			return new DataResponse($this->trackerService->createPoint($moduleId, $this->getUserId(), $code, $description, $estimateH, $status, $sortOrder), Http::STATUS_CREATED);
+			return new DataResponse($this->trackerService->createPoint($moduleId, $this->getUserId(), $code, $description, $estimateH, $status, $sortOrder, $businessValue, $externalPending), Http::STATUS_CREATED);
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}
@@ -40,9 +40,21 @@ class PointController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'PUT', url: '/api/points/{id}', requirements: ['id' => '\d+'])]
-	public function update(int $id, ?string $code = null, ?string $description = null, ?float $estimateH = null, bool $estimateHProvided = false, ?string $status = null, ?int $sortOrder = null, ?bool $clientVisible = null): DataResponse {
+	public function update(
+		int $id,
+		?string $code = null,
+		?string $description = null,
+		?float $estimateH = null,
+		bool $estimateHProvided = false,
+		?string $status = null,
+		?int $sortOrder = null,
+		?string $businessValue = null,
+		?string $externalPending = null,
+		?int $milestoneId = null,
+		bool $milestoneIdProvided = false,
+	): DataResponse {
 		try {
-			return new DataResponse($this->trackerService->updatePoint($id, $this->getUserId(), $code, $description, $estimateH, $estimateHProvided, $status, $sortOrder, $clientVisible));
+			return new DataResponse($this->trackerService->updatePoint($id, $this->getUserId(), $code, $description, $estimateH, $estimateHProvided, $status, $sortOrder, $businessValue, $externalPending, $milestoneId, $milestoneIdProvided));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}

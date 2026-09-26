@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\ProjectManager\Service;
 
-use OCA\ProjectManager\Db\Feature;
 use OCA\ProjectManager\Db\TestEntry;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -12,8 +11,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Builds a .xlsx workbook reproducing the original Excel tracker's three
- * sheets (Project grid, Features, Tests), colors and number formats.
+ * Builds a .xlsx workbook reproducing the original Excel tracker's sheets
+ * (Project grid, Tests), colors and number formats.
  */
 class ExportService {
 	private const COLOR_HEADER = '305496';
@@ -27,19 +26,16 @@ class ExportService {
 
 	public function __construct(
 		private TrackerService $trackerService,
-		private FeatureService $featureService,
 		private TestService $testService,
 	) {
 	}
 
 	public function build(int $projectId, string $userId): Spreadsheet {
 		$grid = $this->trackerService->buildGrid($projectId, $userId);
-		$features = $this->featureService->findAll($projectId, $userId);
 		$tests = $this->testService->findAll($projectId, $userId);
 
 		$spreadsheet = new Spreadsheet();
 		$this->buildProjectSheet($spreadsheet->getActiveSheet(), $grid);
-		$this->buildFeaturesSheet($spreadsheet->createSheet(), $features);
 		$this->buildTestsSheet($spreadsheet->createSheet(), $tests);
 		$spreadsheet->setActiveSheetIndex(0);
 
@@ -78,7 +74,7 @@ class ExportService {
 	private function buildProjectSheet(Worksheet $sheet, array $grid): void {
 		$sheet->setTitle('Project');
 		$days = $grid['days'];
-		$fixedCols = ['Point', 'Module', 'Description', 'Est.(h)', 'Done(h)', 'Rem.(h)', 'Status'];
+		$fixedCols = ['Point', 'Module', 'Description', 'Est.(h)', 'Done(h)', 'Rem.(h)', 'Status', 'Business value', 'External pending'];
 		$fixedColCount = count($fixedCols);
 
 		// Header row
@@ -116,12 +112,14 @@ class ExportService {
 			$row++;
 
 			foreach ($module['points'] as $point) {
-				$this->setCell($sheet, 1, $row, $point['code'] . ($point['clientVisible'] ? ' ★' : ''));
+				$this->setCell($sheet, 1, $row, $point['code'] . ($point['milestoneId'] !== null ? ' ★' : ''));
 				$this->setCell($sheet, 3, $row, $point['description']);
 				$this->setCell($sheet, 4, $row, $point['estimateH']);
 				$this->setCell($sheet, 5, $row, $point['doneH']);
 				$this->setCell($sheet, 6, $row, $point['remainingH']);
 				$this->setCell($sheet, 7, $row, $point['status']);
+				$this->setCell($sheet, 8, $row, $point['businessValue']);
+				$this->setCell($sheet, 9, $row, $point['externalPending']);
 				foreach ($days as $i => $day) {
 					$pct = $point['pctByDay'][$day] ?? 0;
 					if ($pct > 0) {
@@ -186,44 +184,12 @@ class ExportService {
 			$sheet->getColumnDimension($col)->setWidth(10);
 		}
 		$sheet->getColumnDimension('G')->setWidth(14);
+		$sheet->getColumnDimension('H')->setWidth(32);
+		$sheet->getColumnDimension('I')->setWidth(32);
 		for ($i = 0; $i < count($days); $i++) {
 			$sheet->getColumnDimension($this->colLetter($fixedColCount + 1 + $i))->setWidth(9);
 		}
 		$sheet->freezePane('D3');
-	}
-
-	/** @param Feature[] $features */
-	private function buildFeaturesSheet(Worksheet $sheet, array $features): void {
-		$sheet->setTitle('Features');
-		$headers = ['Feature', 'Point', 'Status', 'Business value', 'External pending'];
-		foreach ($headers as $i => $label) {
-			$this->setCell($sheet, $i + 1, 1, $label);
-		}
-		$this->headerStyle($sheet, 'A1:E1');
-
-		$row = 2;
-		$currentSection = null;
-		foreach ($features as $feature) {
-			if ($feature->getSection() !== $currentSection) {
-				$currentSection = $feature->getSection();
-				$this->setCell($sheet, 1, $row, $currentSection);
-				$this->fillStyle($sheet, "A{$row}:E{$row}", self::COLOR_SUMMARY);
-				$sheet->getStyle("A{$row}")->getFont()->setBold(true);
-				$row++;
-			}
-			$this->setCell($sheet, 1, $row, $feature->getName());
-			$this->setCell($sheet, 2, $row, $feature->getPointRef());
-			$this->setCell($sheet, 3, $row, $feature->getStatus());
-			$this->setCell($sheet, 4, $row, $feature->getBusinessValue());
-			$this->setCell($sheet, 5, $row, $feature->getExternalPending());
-			$this->fillStyle($sheet, "C{$row}", $this->statusColor($feature->getStatus()));
-			$row++;
-		}
-
-		foreach (['A' => 30, 'B' => 12, 'C' => 16, 'D' => 40, 'E' => 32] as $col => $width) {
-			$sheet->getColumnDimension($col)->setWidth($width);
-		}
-		$sheet->freezePane('A2');
 	}
 
 	/** @param TestEntry[] $tests */

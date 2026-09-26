@@ -40,10 +40,10 @@ class TestController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/api/projects/{projectId}/tests', requirements: ['projectId' => '\d+'])]
-	public function create(int $projectId, string $area, string $profile = '', string $scenario = '', string $expected = '', string $status = 'to_test', ?string $testDate = null, string $notes = '', int $sortOrder = 0): DataResponse {
+	public function create(int $projectId, string $area, string $profile = '', string $scenario = '', string $expected = '', string $status = 'to_test', ?string $testDate = null, string $notes = '', int $sortOrder = 0, ?int $pointId = null): DataResponse {
 		try {
 			$date = $testDate !== null ? new \DateTimeImmutable($testDate) : null;
-			return new DataResponse($this->testService->create($projectId, $this->getUserId(), $area, $profile, $scenario, $expected, $status, $date, $notes, $sortOrder), Http::STATUS_CREATED);
+			return new DataResponse($this->testService->create($projectId, $this->getUserId(), $area, $profile, $scenario, $expected, $status, $date, $notes, $sortOrder, $pointId), Http::STATUS_CREATED);
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		} catch (\Exception) {
@@ -53,12 +53,12 @@ class TestController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'PUT', url: '/api/tests/{id}', requirements: ['id' => '\d+'])]
-	public function update(int $id, ?string $area = null, ?string $profile = null, ?string $scenario = null, ?string $expected = null, ?string $status = null, ?string $testDate = null, ?string $notes = null, ?int $sortOrder = null): DataResponse {
+	public function update(int $id, ?string $area = null, ?string $profile = null, ?string $scenario = null, ?string $expected = null, ?string $status = null, ?string $testDate = null, ?string $notes = null, ?int $sortOrder = null, ?int $pointId = null, bool $pointIdProvided = false): DataResponse {
 		try {
 			$testDateValue = $testDate !== null ? new \DateTimeImmutable($testDate) : null;
 			$fields = compact('area', 'profile', 'scenario', 'expected', 'status', 'notes', 'sortOrder');
 			$fields['testDate'] = $testDateValue;
-			return new DataResponse($this->testService->update($id, $this->getUserId(), $fields));
+			return new DataResponse($this->testService->update($id, $this->getUserId(), $fields, $pointId, $pointIdProvided));
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		} catch (\Exception) {

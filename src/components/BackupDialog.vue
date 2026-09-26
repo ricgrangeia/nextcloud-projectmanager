@@ -43,7 +43,7 @@ async function doImport() {
 	<NcDialog :open="open" :name="t('projectmanager', 'Backup & restore')" size="normal" @update:open="(v) => (open = v)">
 		<div class="backup-content">
 			<h4>{{ t('projectmanager', 'Export everything') }}</h4>
-			<p>{{ t('projectmanager', 'Downloads a single JSON file with every project you own — modules, points, leaves, day hours, features and tests. Keep it somewhere safe before migrating to a new server.') }}</p>
+			<p>{{ t('projectmanager', 'Downloads a single JSON file with every project you own — modules, points, leaves, day hours, milestones and tests. Keep it somewhere safe before migrating to a new server.') }}</p>
 			<a class="backup-btn-action" :href="api.backupExportUrl()">{{ t('projectmanager', 'Download backup') }}</a>
 
 			<hr class="backup-separator">
@@ -63,7 +63,7 @@ async function doImport() {
 					<li>{{ t('projectmanager', 'Points') }}: {{ importResult.points }}</li>
 					<li>{{ t('projectmanager', 'Leaves') }}: {{ importResult.leaves }}</li>
 					<li>{{ t('projectmanager', 'Day-hours entries') }}: {{ importResult.dayHours }}</li>
-					<li>{{ t('projectmanager', 'Features') }}: {{ importResult.features }}</li>
+					<li>{{ t('projectmanager', 'Milestones') }}: {{ importResult.milestones }}</li>
 					<li>{{ t('projectmanager', 'Tests') }}: {{ importResult.tests }}</li>
 				</ul>
 			</div>
